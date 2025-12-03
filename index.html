@@ -364,9 +364,23 @@ car.x = spawn.x * TILE + TILE / 2;
 car.y = spawn.y * TILE + TILE / 2;
 
 /* --- Entities: player, car, bullets, npcs, cops --- */
+function findRoadSpawn() {
+  for (let y = 0; y < MAP_H; y++) {
+    for (let x = 0; x < MAP_W; x++) {
+      if (world[y][x] === 'road') {
+        return { x: x*TILE + TILE/2, y: y*TILE + TILE/2 };
+      }
+    }
+  }
+  // fallback if somehow no road exists
+  return { x: MAP_W*TILE/2, y: MAP_H*TILE/2 };
+}
+  
+  const spawn = findRoadSpawn();
+
 const player = {
-  x: (MAP_W/2 + 0.5)*TILE,
-  y: (MAP_H/2 + 1.2)*TILE,
+  x: spawn.x,
+  y: spawn.y,
   r: 12,
   speed: 110,
   runMult: 1.8,
@@ -376,18 +390,19 @@ const player = {
   ammo: 30
 };
 
-player.maxAmmo = 30;     // ammo capacity on foot
-player.ammo = 30;        // starting ammo
+player.maxAmmo = 30;
 player.reloading = false;
-player.reloadTime = 5;    // seconds
+player.reloadTime = 5;
 player.reloadTimer = 0;
 
 const car = {
-  x: player.x + 60, y: player.y + 6,
+  x: spawn.x + 80,
+  y: spawn.y + 20,
   w: 36, h: 18,
-  angle: 0, speed: 0, maxSpeed: 170, accel: 100, friction: 260, turnSpeed: 3.6, hp: 300, exists:true, occupied:false
+  angle: 0, speed: 0, maxSpeed: 170,
+  accel: 100, friction: 260, turnSpeed: 3.6,
+  hp: 300, exists: true, occupied: false
 };
-
 let bullets = [];
 let npcs = [];
 let cops = [];
