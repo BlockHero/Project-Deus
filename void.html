@@ -1,0 +1,2555 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>void</title>
+<style>
+:root{
+  --ui-bg: rgba(0,0,0,0.34);
+  --accent: #ff6b6b;
+  --hud-font: system-ui,Segoe UI,Roboto,Arial;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%; margin:0; background:#07101a; font-family:var(--hud-font); -webkit-user-select:none; user-select:none;}
+#gameWrap{position:relative; width:100%; height:100vh; overflow:hidden; touch-action:none;}
+canvas#game{display:block; width:100%; height:100%; background:linear-gradient(#87c0ff,#7bb7ff);}
+
+/* HUD */
+#hud{position:absolute; left:12px; top:12px; z-index:120; color:#fff; font-size:14px; pointer-events:none;}
+.hud-row{margin-bottom:8px}
+.bar{width:170px; height:14px; background:rgba(255,255,255,0.08); border-radius:6px; overflow:hidden; border:1px solid rgba(0,0,0,0.35);}
+.bar-fill{height:100%; border-radius:6px;}
+#healthFill{background:linear-gradient(90deg,#ff624d,#ff8a6b); width:100%;}
+#armorFill{background:linear-gradient(90deg,#5fb8ff,#3b82ff); width:100%;}
+.hud-mini{font-size:12px; opacity:0.95; margin-top:6px;}
+
+/* Minimap */
+#minimap{position:absolute; right:12px; top:12px; width:120px; height:120px; background:rgba(0,0,0,0.45); border-radius:8px; z-index:120; overflow:hidden; border:2px solid rgba(255,255,255,0.06);}
+
+/* Joystick */
+#joystickArea{position:absolute; left:12px; bottom:12px; width:150px; height:150px; z-index:110; touch-action:none;}
+.joystick-bg{position:absolute; inset:0; border-radius:50%; background:var(--ui-bg); display:flex; align-items:center; justify-content:center; pointer-events:none;}
+#stick{position:absolute; width:66px; height:66px; left:42px; top:42px; border-radius:50%; background:rgba(255,255,255,0.96); box-shadow:0 8px 18px rgba(0,0,0,0.45); transition:transform 0.02s linear;}
+
+/* Button utilities */
+.ui-btn{background:var(--ui-bg); color:#fff; border-radius:12px; border:1px solid rgba(255,255,255,0.06); pointer-events:auto; padding:6px;}
+.ui-btn.circle{width:70px; height:70px; border-radius:50%; font-size:22px; display:inline-flex; align-items:center; justify-content:center;}
+.ui-btn.small{width:70px;height:70px}
+
+/* Buttons */
+#shootBtn{position:absolute; right:100px; bottom:118px; z-index:110;}
+#enterBtn{position:absolute; right:100px; bottom:28px; z-index:110;}
+#pauseBtn{position:absolute; left:50%; transform:translateX(-50%); top:12px; z-index:120;}
+#fsBtn{position:absolute; left:60%; transform:translateX(-50%); top:12px; z-index:120;}
+#sprintBtn{position:absolute; right:15px; bottom:10px; z-index:110;}
+
+/* Car controls */
+#carControlsLeft{
+  position:absolute;
+  left:1px;
+  bottom:180px;
+  z-index:115;
+  display:none;
+  pointer-events:auto;
+}
+
+#carLeft{
+  position:absolute;
+  left:0;
+  bottom:0;
+}
+
+#carRight{
+  position:absolute;
+  left:90px;
+  bottom:0;
+}
+.car-btn{width:70px; height:70px; margin:6px; font-size:28px; color:#fff; background:var(--ui-bg); border-radius:12px; border:2px solid rgba(255,255,255,0.06);}
+
+#carControlsRight{position:absolute; right:12px; bottom:40px; z-index:115; display:none; flex-direction:column; gap:8px; align-items:flex-end; pointer-events:auto;}
+
+/* Pause overlay */
+#pauseOverlay{position:absolute; inset:0; background:rgba(0,0,0,0.55); display:none; z-index:200; align-items:center; justify-content:center; color:#fff; font-size:20px;}
+#pauseOverlay .box{background:rgba(0,0,0,0.6); padding:18px; border-radius:12px; border:1px solid rgba(255,255,255,0.06); text-align:center;}
+#mapPopup{position:fixed; inset:0; display:none; z-index:9999; align-items:center; justify-content:center; background:rgba(0,0,0,0.8);}
+#bigMap{background:#222; border:3px solid white; width:300px; height:300px;}
+
+@media(min-width:900px){
+  #joystickArea{left:24px; bottom:24px; width:180px; height:180px;}
+  #stick{width:80px; height:80px; left:50px; top:50px;}
+  .car-btn{width:80px; height:80px; font-size:30px;}
+  #shootBtn .ui-btn.circle{width:88px; height:88px; font-size:26px;}
+}
+
+/* ================= AIM JOYSTICK FIX ================= */
+
+/* make shoot button a joystick container */
+#shootBtn {
+  position: absolute;
+  overflow: hidden;
+}
+
+/* background circle (like move joystick base) */
+#shootBtn .aim-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:var(--ui-bg);
+  border: 1px solid rgba(255,255,255,0.06);  
+}
+
+/* white stick */
+#shootBtn .aim-stick {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.95);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.45);
+  pointer-events: none;
+}
+
+/* hide gun icon when joystick is active */
+#shootBtn .aim-icon {
+  position: relative;
+  z-index: 2;
+}
+
+#callCarBtn{
+  position:absolute;
+  right:100px;
+  bottom:200px;
+  z-index:110;
+}
+
+#nitroBtn{
+  position:absolute;
+  right:100px;
+  bottom:200px;
+  z-index:110;
+  display:none;
+}
+
+/* ================= CRIMSON HUD (INVERTED) ================= */
+#dialogueBox{
+  position:absolute;
+  left:50%;
+  bottom:70%;
+  transform:translateX(-50%);
+  max-width:82%;
+  min-width:300px;
+
+  padding:14px 20px 16px;
+
+  /* box now uses the old text color */
+  background:linear-gradient(
+    180deg,
+    rgba(255,230,235,0.97),
+    rgba(240,210,215,0.96)
+  );
+
+  /* text now uses the old dark crimson */
+  color:#2a0e12;
+
+  border-radius:6px;
+  border:1px solid rgba(120,20,30,0.55);
+
+  box-shadow:
+    0 10px 26px rgba(0,0,0,0.65),
+    0 0 18px rgba(255,120,140,0.25),
+    inset 0 0 0 1px rgba(255,255,255,0.35);
+
+  font-size:15px;
+  line-height:1.45;
+  letter-spacing:0.15px;
+
+  display:none;
+  z-index:160;
+  pointer-events:none;
+
+  animation:hudIn 0.18s ease-out;
+}
+
+/* top HUD status line */
+#dialogueBox::before{
+  content:"";
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  height:2px;
+  background:linear-gradient(
+    to right,
+    transparent,
+    rgba(120,20,30,0.85),
+    transparent
+  );
+}
+
+/* text clarity */
+#dialogueText{
+  text-align:center;
+  text-shadow:
+    0 1px 0 rgba(255,255,255,0.6);
+}
+
+/* entrance motion */
+@keyframes hudIn{
+  from{
+    opacity:0;
+    transform:translateX(-50%) translateY(6px);
+  }
+  to{
+    opacity:1;
+    transform:translateX(-50%) translateY(0);
+  }
+}
+
+/* ================= WHITE VIGNETTE ================= */
+#whiteVignette{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:998;
+
+  opacity:0;
+
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(255,255,255,0) 25%,
+      rgba(255,255,255,0.6) 55%,
+      rgba(255,255,255,1) 85%
+    );
+}
+
+/* ================= WHITE FILL ================= */
+#whiteFill{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:999;
+
+  background:#fff;
+  opacity:0;
+}
+
+/* ================= PEACE OVERLAY (CINEMATIC MINIMAL) ================= */
+
+#peaceOverlay {
+  position: fixed;
+  inset: 0;
+  background: #ffffff;
+  z-index: 999999;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  opacity: 0;
+  transition: opacity 3.5s ease;
+  pointer-events: none;
+
+  font-family: 'Playfair Display', serif;
+}
+
+#peaceOverlay.show {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* ---------------- MAIN TEXT ---------------- */
+
+#peaceOverlay h1 {
+  max-width: 86vw;
+  text-align: center;
+  line-height: 1.35;
+
+  font-size: clamp(2rem, 6vw, 3.2rem);
+  font-weight: 400;
+  color: #111;
+  margin: 0;
+
+  opacity: 0;
+  transform: scale(1.04);
+  filter: blur(10px);
+
+  transition:
+    opacity 3.8s ease,
+    transform 3.8s ease,
+    filter 4.2s ease;
+
+  transition-delay: 2.8s;
+
+  letter-spacing: 0.22em;
+  padding-left: 0.22em; /* optical centering for mobile */
+}
+
+#peaceOverlay.show h1 {
+  opacity: 1;
+  transform: scale(1);
+  filter: blur(0);
+}
+
+/* ---------------- SUB TEXT ---------------- */
+
+#peaceOverlay h2 {
+  max-width: 80vw;
+  text-align: center;
+
+  font-size: clamp(1rem, 3.5vw, 1.35rem);
+  font-weight: 400;
+  color: #666;
+  margin-top: 28px;
+
+  opacity: 0;
+
+  transition: opacity 3.2s ease;
+  transition-delay: 5.2s;
+}
+
+#peaceOverlay.show h2 {
+  opacity: 1;
+}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<div id="gameWrap">
+  <canvas id="game"></canvas>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-row"><strong>Mode:</strong> <span id="modeText">On Foot</span></div>
+    <div class="hud-row">Health<div class="bar"><div id="healthFill" class="bar-fill"></div></div></div>
+    <div class="hud-row">Armor<div class="bar"><div id="armorFill" class="bar-fill"></div></div></div>
+  </div>
+  
+  <!-- Dialogue Box -->
+<div id="dialogueBox">
+  <div id="dialogueText"></div>
+</div>
+
+<!-- White transition overlay -->
+<div id="whiteVignette"></div>
+<div id="whiteFill"></div>
+
+  <!-- Minimap -->
+  <canvas id="minimap"></canvas>
+
+  <div id="mapPopup"><canvas id="bigMap"></canvas></div>
+
+  <!-- Joystick -->
+  <div id="joystickArea" aria-hidden="true">
+    <div class="joystick-bg"></div>
+    <div id="stick"></div>
+  </div>
+
+  <!-- Buttons -->
+  <div id="shootBtn" class="ui-btn circle">
+  <div class="aim-bg"></div>
+  <div class="aim-stick"></div>
+  <span class="aim-icon">🔫</span>
+</div>
+<button id="nitroBtn" class="ui-btn circle">🔥</button>
+  <button id="enterBtn" class="ui-btn circle">🚘</button>
+  <button id="pauseBtn" class="ui-btn">⏸️</button>
+  <button id="fsBtn" class="ui-btn">🔲</button>
+  <button id="sprintBtn" class="ui-btn circle">🏃</button>
+  <div id="callCarBtn" class="ui-btn circle">🚗</div>
+
+  <!-- Car controls left (TURN left/right) -->
+  <div id="carControlsLeft" class="car-controls">
+    <button class="car-btn" id="carLeft">◀</button>
+    <button class="car-btn" id="carRight">▶</button>
+  </div>
+
+  <!-- Car controls right (UP/DOWN/EXIT) -->
+  <div id="carControlsRight" class="car-controls">
+    <div style="display:flex; flex-direction:column; align-items:flex-end;">
+      <button class="car-btn car-small" id="carUp">▲</button>
+      <button class="car-btn car-small" id="carDown">▼</button>
+      <button class="car-btn car-small" id="exitCar">🚪</button>
+    </div>
+  </div>
+
+  <!-- Pause overlay -->
+  <div id="pauseOverlay"><div class="box"><div style="font-weight:700;margin-bottom:8px">PAUSED</div>
+  <div>Tap resume to continue</div><div style="height:12px"></div><button id="resumeBtn" class="ui-btn">RESUME</button></div></div>
+</div>
+
+<div id="peaceOverlay">
+  <h1>PEACE IS WHERE YOU FIND IT.</h1>
+  <h2>THANKS FOR STAYING!</h2>
+</div>
+<script>
+    
+let moveTouchId = null;
+let aimTouchId = null;
+let carRecall = false;
+let carRecallTarget = { x: 0, y: 0 };
+let activeDialogueTile = null;
+let activeMoveZone = null;
+let moveTimer = 0;
+const giantProjectiles = [];
+
+const dialogueBox = document.getElementById("dialogueBox");
+const dialogueText = document.getElementById("dialogueText");
+
+const whiteVignette = document.getElementById("whiteVignette");
+/* -------------------------------------------------------------------
+   Config & small helpers (merged and centralized)
+   ------------------------------------------------------------------- */
+let aimMode = "joystick";
+// aim joystick state
+let aimJoy = {
+  active: false,
+  startX: 0,
+  startY: 0,
+  dx: 0,
+  dy: 0
+};
+const TILE = 60, MAP_W = 60, MAP_H = 60;
+const PLAYER_RADIUS = 12, SPRINT_MULT = 2.0, STICK_RADIUS = 56;
+
+const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+const mini = document.getElementById('minimap'), mctx = mini.getContext('2d');
+
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+function approach(a,b,delta){ return a<b ? Math.min(b,a+delta) : Math.max(b,a-delta); }
+function centerOf(tx,ty){ return { x: tx*TILE + TILE/2, y: ty*TILE + TILE/2 }; }
+function moveTowards(obj, tx, ty, speed, dt){
+  const dx = tx - obj.x, dy = ty - obj.y;
+  const dist = Math.hypot(dx,dy);
+  if (dist < 0.0001) return true;
+  obj.x += (dx/dist) * speed * dt;
+  obj.y += (dy/dist) * speed * dt;
+  return dist <= 1;
+}
+
+/* safeMove: single place for collision rollback */
+function safeMove(obj, dx, dy){
+  const nx = obj.x + dx, ny = obj.y + dy;
+  if (tileAt(nx, ny) === 'building' || tileAt(nx, ny) === 'water') {
+    return false;
+  } else {
+    obj.x = nx; obj.y = ny; return true;
+  }
+}
+
+/* bindHoldButton helper */
+function bindHoldButton(el, onDown, onUp){
+  el.addEventListener('touchstart', e => { if (e.cancelable) e.preventDefault(); onDown(); }, {passive:false});
+  el.addEventListener('touchend', e => { if (e.cancelable) e.preventDefault(); onUp(); }, {passive:false});
+  el.addEventListener('mousedown', onDown);
+  window.addEventListener('mouseup', onUp);
+}
+
+/* -------------------------------------------------------------------
+   Resize / DPR
+   ------------------------------------------------------------------- */
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.floor(window.innerWidth * dpr);
+  canvas.height = Math.floor(window.innerHeight * dpr);
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+
+  mini.width = 120 * dpr; mini.height = 120 * dpr;
+  mini.style.width = '120px'; mini.style.height = '120px';
+  mctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener('resize', resize); resize();
+
+/* --- Map generation (urban) --- */
+const world = []; // 'road','building','park','water'
+
+function generateMap(){
+  for (let y=0;y<MAP_H;y++){
+    world[y]=[];
+    for (let x=0;x<MAP_W;x++){
+      // border water
+      if (x < 2 || y < 2 || x >= MAP_W-2 || y >= MAP_H-2) { world[y][x] = 'water'; continue; }
+      // grid roads every 4 tiles
+      if (x % 4 === 0 || y % 4 === 0) { world[y][x] = 'road'; continue; }
+      // parks near center
+      const mx = Math.floor(MAP_W/2), my = Math.floor(MAP_H/2);
+      if (Math.abs(x-mx) < 3 && Math.abs(y-my) < 3 && Math.random() < 0.6) { world[y][x] = 'park'; continue; }
+      // buildings otherwise
+      world[y][x] = Math.random() < 0.06 ? 'park' : 'building';
+    }
+  }
+  // carve central avenue
+  const mid = Math.floor(MAP_W/2);
+  for (let i=0;i<MAP_H;i++){ world[i][mid] = 'road'; world[mid][i] = 'road'; }
+}
+generateMap();
+
+function tileAt(px,py){
+  const tx = Math.floor(px / TILE), ty = Math.floor(py / TILE);
+  if (tx<0||ty<0||tx>=MAP_W||ty>=MAP_H) return 'water';
+  return world[ty][tx];
+}
+function worldTileFromPos(px,py){ return { tx: Math.floor(px/TILE), ty: Math.floor(py/TILE) }; }
+function isRoadTile(tx,ty){ if (tx<0||ty<0||tx>=MAP_W||ty>=MAP_H) return false; return world[ty][tx] === 'road'; }
+
+/* BFS nearest road (kept similar) */
+function findNearestRoad(px,py, radiusTiles = 10){
+  const start = worldTileFromPos(px,py);
+  const seen = new Set(), q=[{tx:start.tx, ty:start.ty, d:0}];
+  seen.add(start.tx+','+start.ty);
+  const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+  while(q.length){
+    const cell = q.shift();
+    if (isRoadTile(cell.tx,cell.ty)) return { x: cell.tx * TILE + TILE/2, y: cell.ty * TILE + TILE/2, tx:cell.tx, ty:cell.ty };
+    if (cell.d >= radiusTiles) continue;
+    for (const di of dirs){
+      const ntx = cell.tx + di[0], nty = cell.ty + di[1];
+      const key = ntx+','+nty;
+      if (ntx<0||nty<0||ntx>=MAP_W||nty>=MAP_H) continue;
+      if (seen.has(key)) continue; seen.add(key); q.push({tx:ntx,ty:nty,d:cell.d+1});
+    }
+  }
+  return null;
+}
+
+/* choose next road neighbor toward target */
+function chooseNextRoadStepFrom(tx,ty,targetX,targetY){
+  const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+  let best=null, bestDist=Infinity;
+  for(const d of dirs){
+    const ntx=tx+d.dx, nty=ty+d.dy;
+    if (!isRoadTile(ntx,nty)) continue;
+    const cx = ntx*TILE + TILE/2, cy = nty*TILE + TILE/2;
+    const dist = Math.hypot(targetX-cx, targetY-cy);
+    if (dist < bestDist){ bestDist = dist; best = {tx:ntx,ty:nty,x:cx,y:cy}; }
+  }
+  return best;
+}
+
+// ================= DIALOGUE TILE TRIGGERS =================
+const dialogueZones = [
+  {
+    tiles: [
+      [44,17],[45,17],[46,17],
+      [45,18],[46,18]
+    ],
+    text: "Bonat"
+  },
+  {
+    tiles: [
+      [41,58],[42,58],[43,58],
+      [41,59],[42,59],[43,59]
+    ],
+    text: "Entering VOID in 10 seconds, stay still."
+  },
+  {
+    tiles: [
+      [58,23],[58,24],[58,25],
+      [59,23],[59,24],[59,25]
+    ],
+    text: "Entering PAST in 10 seconds, stay still."
+  }
+];
+
+// ================= MOVE TILES =================
+const moveZones = [
+  {
+    tiles: [
+      [26,1]
+    ],
+    target: "construct.html",
+    time: 10 // seconds
+  }
+];
+
+/* -------------------------------------------------------------------
+   Entities: player, car, bullets
+   ------------------------------------------------------------------- */
+const player = { 
+  x:(MAP_W/2)*TILE, 
+  y:(MAP_H/2)*TILE, 
+  r:12, 
+  speed:110, 
+  runMult:1.8, 
+  inCar:false, 
+  hp:100, 
+  armor:100, 
+  ammo:30, 
+  maxAmmo:30, 
+  reloading:false, 
+  reloadTime:5, 
+  reloadTimer:0, 
+  lookX: 1, 
+  lookY: 0,
+  inGiantAura: false,
+
+  // ── spawn animation ──
+  spawning: true,
+  spawnTimer: 0,
+  spawnDuration: 0.6,
+  spawnShake: 6,
+  spawnFlickerRate: 40
+};
+
+function playerTeleportTo(x, y){
+  // Freeze player input briefly
+  input.moveX = input.moveY = 0;
+  joy.active = false;
+
+  // Flicker effect
+  whiteFill.style.transition = 'opacity 0.05s';
+  whiteFill.style.opacity = 1;
+
+  // Move player after 100ms
+  setTimeout(() => {
+    player.x = x;
+    player.y = y;
+    whiteFill.style.opacity = 0;
+  }, 100);
+}
+
+const car = { x:player.x+60, y:player.y+6, w:65, h:35, angle:0, speed:0, maxSpeed:3500, accel:1000, friction:200, turnSpeed:3.6, hp:300, exists:true, exploded: false, occupied:false };
+let bullets = [];
+
+// ---------- Peace Object ----------
+let peaceObject = {
+    exists: true,
+    x: 0,
+    y: 0,
+    r: 18,
+    triggered: false,
+    textTimer: 0,
+    fadeTimer: 0, // tracks fade progress
+    fadeDuration: 2.5, // seconds for fade-in
+    displayDuration: 50 // total display time
+};
+
+const giant = {
+    x: 0,
+    y: 0,
+    w: 400,
+    h: 400,
+    speed: 20,
+    hp: 5000,
+    maxHp: 5000,
+    aggro: false,
+    aggroRange: 420,
+    hpRevealed: false,
+    deathTimer: 0,
+    deathDuration: 10,
+    dead: false,
+    color: '#ff0000',
+    // ── SHOOTING ──
+    shootCooldown: 0.5,
+    shootTimer: 0,
+    targetX: null,
+    targetY: null,
+    pickCooldown: 0,
+    angle: 0,
+    turnSpeed: Math.PI * 0.6, // slow heavy turning
+    // ── LASER ATTACK ──
+laserCooldown: 7,
+laserTimer: 0,
+laserChargeTime: 2.5,
+laserFireTime: 2.0,
+laserWidth: 26,
+laserDamage: 40,
+laserAngle: 0,
+// ── CORRUPTED GROUND (LASER COMBO) ──
+groundActive: false,
+groundDuration: 5.2,
+groundRadius: 1000,
+groundTileCount: 50,
+// ── DASH SYSTEM ──
+    state: 'walk',
+    stateTimer: 0,
+    dashCooldown: 2 + Math.random() * 3,
+    dashSpeed: 900,
+    dashTime: 0.25,
+    chargeTime: 0.35,
+    recoverTime: 10,
+    auraRadius: 300, // radius for slowing & damage
+    auraDamage: 5,  // per second
+    auraSlow: 0.5    // movement multiplier
+};
+
+let giantGroundTiles = [];
+
+
+/* -------------------------------------------------------------------
+   Input & UI refs
+   ------------------------------------------------------------------- */
+const stick = document.getElementById('stick'), joystickArea = document.getElementById('joystickArea');
+const shootBtn = document.getElementById('shootBtn'), enterBtn = document.getElementById('enterBtn');
+const carControlsLeft = document.getElementById('carControlsLeft'), carControlsRight = document.getElementById('carControlsRight');
+const carLeft = document.getElementById('carLeft'), carRight = document.getElementById('carRight');
+const carUp = document.getElementById('carUp'), carDown = document.getElementById('carDown'), exitCarBtn = document.getElementById('exitCar');
+const modeText = document.getElementById('modeText'), healthFill = document.getElementById('healthFill'), armorFill = document.getElementById('armorFill');
+const pauseBtn = document.getElementById('pauseBtn'), pauseOverlay = document.getElementById('pauseOverlay'), resumeBtn = document.getElementById('resumeBtn');
+const aimModeLabel = document.getElementById("aimModeLabel");
+const mapPopup = document.getElementById('mapPopup'), bigMapCanvas = document.getElementById('bigMap'), bctx = bigMapCanvas.getContext('2d');
+
+let input = { moveX:0, moveY:0 }, joy = { x:0, y:0, activeId:null }, STICK_R = STICK_RADIUS;
+let inputKeys = {}; window.addEventListener('keydown', e => inputKeys[e.key.toLowerCase()] = true); window.addEventListener('keyup', e => inputKeys[e.key.toLowerCase()] = false);
+
+/* joystick logic (keeps as-is but uses helper positions) */
+function getRect(el){ return el.getBoundingClientRect(); }
+function startStick(x, y){
+  joy.active = true;
+  joy.startX = x;
+  joy.startY = y;
+  moveStick(x, y);
+}
+
+function moveStick(x, y){
+  const rect = joystickArea.getBoundingClientRect();
+  let dx = x - joy.startX;
+  let dy = y - joy.startY;
+
+  const max = 40;
+  const d = Math.hypot(dx, dy);
+  if (d > max){
+    dx = dx / d * max;
+    dy = dy / d * max;
+  }
+
+  joy.x = dx;
+  joy.y = dy;
+
+  input.moveX = dx / max;
+  input.moveY = dy / max;
+
+  stick.style.transform = `translate(${dx}px, ${dy}px)`;
+}
+
+function endStick(){
+  joy.active = false;
+  joy.x = joy.y = 0;
+  input.moveX = input.moveY = 0;
+  stick.style.transform = `translate(0px, 0px)`;
+}
+function handleStickMove(p){
+  const area = getRect(joystickArea);
+  const cx = area.left + area.width/2, cy = area.top + area.height/2;
+  let dx = p.clientX - cx, dy = p.clientY - cy;
+  const dist = Math.hypot(dx,dy);
+  if (dist > STICK_R){ dx = dx / dist * STICK_R; dy = dy / dist * STICK_R; }
+  stick.style.transform = `translate(${dx}px, ${dy}px)`;
+  joy.x = dx / STICK_R; joy.y = dy / STICK_R;
+  input.moveX = joy.x; input.moveY = joy.y;
+}
+joystickArea.addEventListener('touchstart', e=>{
+  if (moveTouchId !== null) return;
+
+  const t = e.changedTouches[0];
+  moveTouchId = t.identifier;
+
+  startStick(t.clientX, t.clientY);
+},{passive:false});
+
+joystickArea.addEventListener('touchmove', e=>{
+  for (const t of e.changedTouches){
+    if (t.identifier === moveTouchId){
+      moveStick(t.clientX, t.clientY);
+      break;
+    }
+  }
+},{passive:false});
+
+joystickArea.addEventListener('touchend', e=>{
+  for (const t of e.changedTouches){
+    if (t.identifier === moveTouchId){
+      moveTouchId = null;
+      endStick();
+      break;
+    }
+  }
+},{passive:false});
+
+joystickArea.addEventListener('mousedown', e=>{ startStick(e); window.addEventListener('mousemove', moveStick); });
+window.addEventListener('mouseup', e=>{ endStick(e); window.removeEventListener('mousemove', moveStick); });
+
+/* sprint + shoot binding using helper */
+let sprinting=false;
+const sprintBtn = document.getElementById('sprintBtn');
+bindHoldButton(sprintBtn, ()=>sprinting=true, ()=>sprinting=false);
+// shoot button: button OR joystick based on aimMode
+shootBtn.addEventListener('touchstart', e=>{
+  if (aimTouchId !== null) return;
+
+  const t = e.changedTouches[0];
+  aimTouchId = t.identifier;
+
+  aimStickActive = true;
+  aimJoy.startX = t.clientX;
+  aimJoy.startY = t.clientY;
+},{passive:false});
+
+shootBtn.addEventListener('touchmove', e=>{
+  for (const t of e.changedTouches){
+    if (t.identifier !== aimTouchId) continue;
+    if (!aimStickActive || aimMode !== "joystick") return;
+
+    let dx = t.clientX - aimJoy.startX;
+    let dy = t.clientY - aimJoy.startY;
+
+    const max = 30;
+    const d = Math.hypot(dx,dy);
+    if (d > max){ dx = dx/d*max; dy = dy/d*max; }
+
+    aimX = dx / max;
+    aimY = dy / max;
+
+    shootBtn.querySelector(".aim-stick")
+      .style.transform = `translate(${dx}px,${dy}px)`;
+  }
+},{passive:false});
+
+shootBtn.addEventListener('touchend', e=>{
+  for (const t of e.changedTouches){
+    if (t.identifier === aimTouchId){
+      aimTouchId = null;
+      shootPressed = false;
+      aimStickActive = false;
+      aimX = aimY = 0;
+
+      shootBtn.querySelector(".aim-stick")
+        .style.transform = `translate(-50%,-50%)`;
+      break;
+    }
+  }
+},{passive:false});
+
+const nitroBtn = document.getElementById('nitroBtn');
+
+nitroBtn.addEventListener('touchstart', e=>{
+  e.preventDefault();
+  nitroPressed = true;
+});
+nitroBtn.addEventListener('touchend', e=>{
+  e.preventDefault();
+  nitroPressed = false;
+});
+
+// === AIM JOYSTICK INPUT ===
+let aimStickActive = false;
+let aimX = 0;
+let aimY = 0;
+const AIM_DEADZONE = 0.25;
+
+window.addEventListener('keydown', e => { if(e.key==='Shift') sprinting=true; if(e.key===' ') enterBtn.click(); if(e.key==='p') togglePause(); });
+window.addEventListener('keyup', e => { if(e.key==='Shift') sprinting=false; });
+
+/* enter / vehicle UI */
+enterBtn.addEventListener('click', ()=>{
+  if (!player.inCar){
+    const d = Math.hypot(player.x - car.x, player.y - car.y);
+    if (d < 56 && car.exists){
+      player.inCar = true; car.occupied = true; modeText.textContent='In Car'; showVehicleUI(true);
+    }
+  } else {
+    player.inCar = false; car.occupied = false; modeText.textContent='On Foot'; showVehicleUI(false);
+    const p = getSafeExitPosition(); player.x = p.x; player.y = p.y;
+  }
+});
+
+/* exitCar button */
+exitCarBtn.addEventListener('click', ()=>{
+  if (player.inCar){ player.inCar=false; car.occupied=false; modeText.textContent='On Foot'; showVehicleUI(false); const p=getSafeExitPosition(); player.x=p.x; player.y=p.y; }
+});
+
+function showVehicleUI(inCar){
+  // car controls
+  carControlsLeft.style.display  = inCar ? 'flex' : 'none';
+  carControlsRight.style.display = inCar ? 'flex' : 'none';
+
+  // on-foot controls
+  joystickArea.style.display = inCar ? 'none' : 'block';
+  sprintBtn.style.display   = inCar ? 'none' : 'block';
+  callCarBtn.style.display  = inCar ? 'none' : 'block';
+  enterBtn.style.display    = inCar ? 'none' : 'block';
+  nitroBtn.style.display = inCar ? 'flex' : 'none';
+}
+
+/* car control binding */
+let carInput={left:false,right:false,up:false,down:false};
+function bindCarBtn(el,prop){
+  bindHoldButton(el, ()=>carInput[prop]=true, ()=>carInput[prop]=false);
+}
+bindCarBtn(carLeft,'left'); bindCarBtn(carRight,'right'); bindCarBtn(carUp,'up'); bindCarBtn(carDown,'down');
+
+// NITRO INPUT
+let nitroPressed = false;
+
+window.addEventListener('keydown', e=>{
+  if (e.key.toLowerCase() === 'n') nitroPressed = true;
+});
+window.addEventListener('keyup', e=>{
+  if (e.key.toLowerCase() === 'n') nitroPressed = false;
+});
+
+const callCarBtn = document.getElementById('callCarBtn');
+
+callCarBtn.addEventListener('pointerdown', ()=>{
+  if (!car.exists) return;
+  if (car.occupied) return;
+
+  const d = Math.hypot(car.x - player.x, car.y - player.y);
+  if (d < 80) return;
+
+  carRecall = true;
+  carRecallTarget.x = player.x;
+  carRecallTarget.y = player.y;
+});
+
+/* pause handling */
+let paused=false;
+function setPaused(v){ paused=v; pauseOverlay.style.display = v ? 'flex' : 'none'; }
+function togglePause(){ setPaused(!paused); }
+pauseBtn.addEventListener('click', ()=> togglePause()); resumeBtn.addEventListener('click', ()=> setPaused(false));
+
+
+/* fullscreen */
+document.getElementById("fsBtn").addEventListener("click", () => {
+    const elem = document.documentElement;
+    if (!document.fullscreenElement) elem.requestFullscreen().catch(()=>{});
+    else document.exitFullscreen();
+});
+
+/* -------------------------------------------------------------------
+   Shooting & bullets (merged and simplified)
+   ------------------------------------------------------------------- */
+let shootCooldown = 0;
+function playerShoot(){
+  if (shootCooldown > 0) return;
+  if (player.inCar){
+    const ang = Math.hypot(input.moveX, input.moveY) < 0.2 ? car.angle : Math.atan2(input.moveY,input.moveX);
+    bullets.push({ x: car.x + Math.cos(car.angle)*10, y: car.y + Math.sin(car.angle)*10, vx: Math.cos(ang)*620, vy: Math.sin(ang)*620, life:1.6, owner:'player', dmg:18});
+    shootCooldown = 0.18; return;
+  }
+  if (player.reloading) return;
+  if (player.ammo <= 0){ player.reloading=true; player.reloadTimer=player.reloadTime; return; }
+  let ang;
+if (aimMode === "joystick" && Math.hypot(aimX, aimY) > AIM_DEADZONE){
+  ang = Math.atan2(aimY, aimX);
+}
+else if (Math.hypot(input.moveX,input.moveY) > 0.2){
+  ang = Math.atan2(input.moveY,input.moveX);
+}
+else {
+  ang = 0;
+}
+  bullets.push({ x:player.x, y:player.y, vx:Math.cos(ang)*620, vy:Math.sin(ang)*620, life:1.6, owner:'player', dmg:18 });
+  player.ammo--; shootCooldown = 0.18;
+}
+
+/* handle bullet vs entities */
+function handleBulletHit(b){
+  return false;
+}
+
+function handleGiantProjectileHit(p) {
+    const dx = player.x - p.x;
+    const dy = player.y - p.y;
+    const dist = Math.hypot(dx, dy);
+
+    // player hit radius ≈ player.r
+    if (dist < p.r + player.r) {
+
+        damagePlayerOrCar(p.damage);
+
+        return true; // projectile consumed
+    }
+
+    return false;
+}
+
+/* -------------------------------------------------------------------
+   Car exit safe point helper (extracted)
+   ------------------------------------------------------------------- */
+function getSafeExitPosition(){
+  const dirs = [car.angle + Math.PI/2, car.angle - Math.PI/2, car.angle, car.angle + Math.PI];
+  const exitDist = 34;
+  for (let d of dirs){
+    const ex = car.x + Math.cos(d)*exitDist, ey = car.y + Math.sin(d)*exitDist;
+    if (tileAt(ex,ey) !== 'building' && tileAt(ex,ey) !== 'water') return {x:ex,y:ey};
+  }
+  for(let i=40;i<120;i+=10){
+    const ex = car.x + Math.cos(car.angle)*i, ey = car.y + Math.sin(car.angle)*i;
+    if (tileAt(ex,ey) !== 'building' && tileAt(ex,ey) !== 'water') return {x:ex,y:ey};
+  }
+  return {x:car.x, y:car.y};
+}
+
+// All damage goes through armor first, always.
+let armorRegenTimer = 0;        // counts seconds since last damage
+const ARMOR_REGEN_DELAY = 8;    // seconds before regen starts
+const ARMOR_REGEN_RATE = 15;    // points per second
+
+function applyDamageToPlayer(dmg){
+    if (dmg <= 0) return;
+
+    armorRegenTimer = 0; // reset timer whenever player takes damage
+
+    const absorbed = Math.min(player.armor, dmg);
+    player.armor -= absorbed;
+
+    const leftover = dmg - absorbed;
+    if (leftover > 0){
+        player.hp = Math.max(0, player.hp - leftover);
+    }
+}
+
+function updateArmorRegen(dt){
+
+    // ❌ NO ARMOR REGEN INSIDE GIANT AURA
+    if (player.inGiantAura) {
+        armorRegenTimer = 0; // hard reset so regen can't "store time"
+        return;
+    }
+
+    if (player.armor < 100){
+        armorRegenTimer += dt;
+
+        if (armorRegenTimer >= ARMOR_REGEN_DELAY){
+            player.armor += ARMOR_REGEN_RATE * dt;
+            if (player.armor > 100) player.armor = 100;
+        }
+
+    } else {
+        armorRegenTimer = 0; // reset if full
+    }
+}
+
+function showDialogue(text){
+  dialogueText.textContent = text;
+  dialogueBox.style.display = "block";
+}
+
+function hideDialogue(){
+  dialogueBox.style.display = "none";
+  activeDialogueTile = null;
+}
+
+function spawnGiantProjectile(x, y, angle, speed, radius, damage, color, life = 4) {
+    giantProjectiles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        r: radius,
+        damage,
+        color,
+        life
+    });
+}
+
+function applyGiantLaserDamage(dt) {
+if (!giant.aggro || giant.dead) return;
+
+    const maxDist = 900;
+
+    const lx = Math.cos(giant.laserAngle);
+    const ly = Math.sin(giant.laserAngle);
+
+    // vector from giant to player
+    const px = player.x - giant.x;
+    const py = player.y - giant.y;
+
+    // projection length
+    const proj = px * lx + py * ly;
+
+    if (proj > 0 && proj < maxDist) {
+
+        // perpendicular distance to beam
+        const perp = Math.abs(px * ly - py * lx);
+
+        if (perp < giant.laserWidth) {
+
+            damagePlayerOrCar(giant.laserDamage * dt);
+        }
+    }
+}
+
+function spawnLaserSparks(len) {
+    for (let i = 0; i < 6; i++) {
+        const x = Math.random() * len;
+        const y = (Math.random() - 0.5) * 20;
+
+        ctx.fillStyle = 'rgba(255,200,255,0.8)';
+        ctx.beginPath();
+        ctx.arc(x, y, Math.random() * 2 + 1, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+function spawnInstantGiantGround() {
+    giantGroundTiles = [];
+
+    for (let i = 0; i < giant.groundTileCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * giant.groundRadius;
+
+        giantGroundTiles.push({
+            x: giant.x + Math.cos(angle) * dist,
+            y: giant.y + Math.sin(angle) * dist,
+            r: 28,
+            life: giant.groundDuration
+        });
+    }
+
+    giant.groundActive = true;
+}
+
+
+function damagePlayerOrCar(amount) {
+
+    // PLAYER IN CAR → DAMAGE CAR
+    if (player.inCar && car) {
+        car.hp = Math.max(0, car.hp - amount);
+        return;
+    }
+
+    // PLAYER ON FOOT → DAMAGE PLAYER (armor first)
+    let dmg = amount;
+
+    if (player.armor > 0) {
+        const use = Math.min(player.armor, dmg);
+        player.armor -= use;
+        dmg -= use;
+    }
+
+    if (dmg > 0) {
+        player.hp = Math.max(0, player.hp - dmg);
+    }
+}
+
+function checkGiantAggro() {
+    if (giant.aggro || giant.dead) return;
+
+    // distance-based aggro
+    const dx = player.x - giant.x;
+    const dy = player.y - giant.y;
+
+    if (Math.hypot(dx, dy) < giant.aggroRange) {
+        activateGiantAggro();
+    }
+}
+
+function activateGiantAggro() {
+    giant.aggro = true;
+    giant.hpRevealed = true;
+}
+
+function spawnGiantAtRandomTile() {
+    let tries = 0;
+    while (tries++ < 1000) {
+        const tx = Math.floor(Math.random() * MAP_W);
+        const ty = Math.floor(Math.random() * MAP_H);
+
+        if (world[ty][tx] !== 'building' && world[ty][tx] !== 'water') {
+            giant.x = tx * TILE + TILE / 2;
+            giant.y = ty * TILE + TILE / 2;
+            return;
+        }
+    }
+}
+
+function spawnPeaceObjectRandom() {
+  let tries = 0;
+
+  while (tries < 500) {
+    const tx = Math.floor(Math.random() * MAP_W);
+    const ty = Math.floor(Math.random() * MAP_H);
+
+    const tile = world[ty][tx];
+
+    // only allow safe ground tiles
+    if (tile === 'road' || tile === 'park') {
+      peaceObject.x = tx * TILE + TILE / 2;
+      peaceObject.y = ty * TILE + TILE / 2;
+      peaceObject.exists = true;
+      peaceObject.triggered = false;
+      return;
+    }
+
+    tries++;
+  }
+
+  // fallback (in case map is weird)
+  peaceObject.exists = false;
+}
+
+/* -------------------------------------------------------------------
+   Main update loop (uses helpers above)
+   ------------------------------------------------------------------- */
+let last = performance.now(), spawnTimer = 0;
+function update(now){
+  const dt = Math.min(0.05, (now-last)/1000); last = now;
+  if (paused){ requestAnimationFrame(update); return; }
+  
+  // ── spawn animation update ──
+if (player.spawning){
+  player.spawnTimer += dt;
+  if (player.spawnTimer >= player.spawnDuration){
+    player.spawnTimer = player.spawnDuration;
+    player.spawning = false;
+  }
+}
+
+  // reload countdown (single place)
+  if (player.reloading){
+    player.reloadTimer -= dt;
+    if (player.reloadTimer <= 0){ player.reloading = false; player.ammo = player.maxAmmo; }
+  }
+
+  // keyboard fallback movement on foot
+  if (!player.inCar){
+    let mvx=0,mvy=0;
+    if (inputKeys['w']||inputKeys['arrowup']) mvy=-1;
+    if (inputKeys['s']||inputKeys['arrowdown']) mvy=1;
+    if (inputKeys['a']||inputKeys['arrowleft']) mvx=-1;
+    if (inputKeys['d']||inputKeys['arrowright']) mvx=1;
+    if (mvx||mvy){ input.moveX = mvx; input.moveY = mvy; }
+  }
+
+  // player movement on foot (safe move)
+if (!player.inCar && !player.spawning){
+  const mag = Math.hypot(input.moveX, input.moveY);
+
+  if (mag > 0.15){
+    const baseSpeed = player.speed * (sprinting ? SPRINT_MULT : 1) * (inputKeys['shift'] ? player.runMult : 1);
+
+    // ← APPLY GIANT SLOW
+    const speed = baseSpeed * (player.speedMultiplier || 1);
+
+    const dx = (input.moveX / mag) * speed * dt;
+    const dy = (input.moveY / mag) * speed * dt;
+
+    if (!safeMove(player, dx, dy)){
+      // blocked
+    }
+
+    // 👁️ update eye direction
+    player.lookX = input.moveX;
+    player.lookY = input.moveY;
+  }
+} 
+
+
+function updateGiantProjectiles(dt) {
+    for (let i = giantProjectiles.length - 1; i >= 0; i--) {
+        const p = giantProjectiles[i];
+
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.life -= dt;
+
+        // hit player
+        if (handleGiantProjectileHit(p)) {
+            giantProjectiles.splice(i, 1);
+            continue;
+        }
+
+        if (p.life <= 0) {
+            giantProjectiles.splice(i, 1);
+        }
+    }
+}
+
+function updateGiantGround(dt) {
+if (!giant.aggro || giant.dead) return;
+    if (!giant.groundActive) return;
+
+    for (let i = giantGroundTiles.length - 1; i >= 0; i--) {
+        const t = giantGroundTiles[i];
+        t.life -= dt;
+
+        const dx = player.x - t.x;
+        const dy = player.y - t.y;
+
+        if (Math.hypot(dx, dy) < t.r) {
+            damagePlayerOrCar(18 * dt);
+        }
+
+        if (t.life <= 0) {
+            giantGroundTiles.splice(i, 1);
+        }
+    }
+
+    if (giantGroundTiles.length === 0) {
+        giant.groundActive = false;
+    }
+}
+  checkGiantAggro();
+  updateCar(dt);
+  updateGiant(dt);
+  updateGiantProjectiles(dt);
+  updateGiantGround(dt);
+  
+  
+  
+// ================= DIALOGUE ZONE CHECK =================
+if (!player.inCar){
+  const tx = Math.floor(player.x / TILE);
+  const ty = Math.floor(player.y / TILE);
+
+  let found = null;
+
+  for (const zone of dialogueZones){
+    for (const [zx, zy] of zone.tiles){
+      if (zx === tx && zy === ty){
+        found = zone;
+        break;
+      }
+    }
+    if (found) break;
+  }
+
+  if (found){
+  if (activeDialogueTile !== found){
+    activeDialogueTile = found;
+    showDialogue(found.text);
+  }
+}
+}
+
+// ================= MOVE TILE CHECK =================
+if (!player.inCar){
+  const tx = Math.floor(player.x / TILE);
+  const ty = Math.floor(player.y / TILE);
+
+  let foundZone = null;
+
+  for (const zone of moveZones){
+    for (const [zx, zy] of zone.tiles){
+      if (zx === tx && zy === ty){
+        foundZone = zone;
+        break;
+      }
+    }
+    if (foundZone) break;
+  }
+
+  if (foundZone){
+    if (activeMoveZone !== foundZone){
+      activeMoveZone = foundZone;
+      moveTimer = 0; // start fresh
+    }
+
+    moveTimer += dt;
+
+const progress = Math.min(moveTimer / foundZone.time, 1);
+
+// strong vignette early
+let vignette = 0;
+
+if (progress > 0.1){
+  vignette = Math.pow((progress - 0.1) / 0.9, 0.35);
+}
+
+whiteVignette.style.opacity = Math.min(vignette, 1);
+
+// center fill kicks in later
+let fill = 0;
+if (progress > 0.65){
+  fill = (progress - 0.65) / 0.35;
+}
+whiteFill.style.opacity = Math.min(fill, 1);
+
+if (progress >= 1){
+  window.location.href = foundZone.target;
+}
+
+} else {
+  // stepped off tile → cancel
+  activeMoveZone = null;
+  moveTimer = 0;
+  whiteVignette.style.opacity = 0;
+  whiteFill.style.opacity = 0;
+}
+} else {
+  // entering car cancels move
+  activeMoveZone = null;
+  moveTimer = 0;
+  whiteVignette.style.opacity = 0;
+  whiteFill.style.opacity = 0;
+}
+
+  // shooting
+  shootCooldown = Math.max(0, shootCooldown - dt);
+  if (aimMode === "joystick" && aimStickActive && Math.hypot(aimX,aimY) > AIM_DEADZONE){
+  playerShoot();
+}
+
+  // bullets update (uses helper)
+  for (let i = bullets.length - 1; i >= 0; i--){
+    const b = bullets[i];
+    const nextX = b.x + b.vx * dt, nextY = b.y + b.vy * dt;
+    if (tileAt(nextX,nextY) === 'building' || tileAt(nextX,nextY) === 'water'){ bullets.splice(i,1); continue; }
+    b.x = nextX; b.y = nextY; b.life -= dt;
+    if (b.life <= 0){ bullets.splice(i,1); continue; }
+    if (b.owner === 'player') {
+
+    // hit giant
+    const dxg = b.x - giant.x;
+    const dyg = b.y - giant.y;
+    if (Math.hypot(dxg, dyg) < giant.w * 0.45) {
+
+    if (!giant.aggro) activateGiantAggro();
+
+    giant.hp -= 20;
+    bullets.splice(i,1);
+    continue;
+}
+
+    if (handleBulletHit(b)){
+        bullets.splice(i,1);
+        continue;
+    }
+}
+  }  
+  
+  // car destruction (VOID)
+if (car.exists && car.hp <= 0 && !car.exploded) {
+
+  car.exploded = true;
+
+  // explosion damage (ONCE)
+  const dist = Math.hypot(player.x - car.x, player.y - car.y);
+  if (dist < 120) {
+    applyDamageToPlayer(30);
+  }
+
+  // eject player safely
+  if (car.occupied) {
+    player.inCar = false;
+    car.occupied = false;
+    modeText.textContent = 'On Foot';
+    showVehicleUI(false);
+  }
+
+  car.exists = false;
+  car.speed = 0;
+}
+
+  // HUD update
+  healthFill.style.width = clamp(player.hp,0,100) + '%';
+  armorFill.style.width = clamp(player.armor,0,100) + '%';
+
+  // death handling — VOID
+if (player.hp <= 0){
+  window.location.href = "construct.html"; // you can change this later
+}
+
+updateArmorRegen(dt);
+armorFill.style.width = player.armor + '%';
+
+// Call when player touches the peace object
+if (peaceObject.exists && !peaceObject.triggered) {
+    const dx = player.x - peaceObject.x;
+    const dy = player.y - peaceObject.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist < player.r + peaceObject.r) {
+        peaceObject.triggered = true;
+        peaceObject.exists = false;
+
+        const overlay = document.getElementById('peaceOverlay');
+        const mainText = overlay.querySelector('h1');
+        const subText = overlay.querySelector('h2');
+
+        // Show overlay & text with animation
+        overlay.classList.add('show');
+        setTimeout(() => mainText.classList.add('show'), 100);  // slight delay for smoothness
+        setTimeout(() => subText.classList.add('show'), 300);
+
+        // Hide UI elements
+        modeText.style.display = 'none';
+        mini.style.display = 'show';
+
+        // Auto-hide after 20s with fade-out
+        setTimeout(() => {
+            overlay.classList.remove('show');
+            mainText.classList.remove('show');
+            subText.classList.remove('show');
+            setTimeout(() => {
+                overlay.style.display = 'none'; // fully hide after fade
+            }, 2500); // match transition duration
+        }, 60000);
+    }
+}
+
+  draw(); requestAnimationFrame(update);
+}
+
+function wallAvoidance(car){
+  const probeDist = 5;
+
+  const leftBlocked  = !clearAhead(car, probeDist, -Math.PI / 2);
+  const rightBlocked = !clearAhead(car, probeDist,  Math.PI / 2);
+
+  if (leftBlocked && !rightBlocked) return 1;   // steer right
+  if (rightBlocked && !leftBlocked) return -1;  // steer left
+  return 0;
+}
+
+   /* -------------------------------------------------------------------
+   Car update (extracted from main loop)
+   ------------------------------------------------------------------- */
+let recallState = 'forward'; // 'forward', 'turn', 'reverse'
+let recallTurnDir = 1;
+car.nitro = 130;          // current nitro
+car.maxNitro = 140;
+car.nitroDrain = 30;     // per second
+car.nitroRegen = 18;     // per second
+car.nitroActive = false;
+const REVERSE_FACTOR = 0.42;
+let carRespawnTimer = 0;
+const CAR_RESPAWN_DELAY = 3.0; // seconds until car respawns
+
+function clearAhead(car, distance, angleOffset = 0){
+  const step = 2;
+  for (let i = 1; i <= distance; i++){
+    const x = car.x + Math.cos(car.angle + angleOffset) * step * i;
+    const y = car.y + Math.sin(car.angle + angleOffset) * step * i;
+    if (tileAt(x, y) === 'building') return false;
+  }
+  return true;
+}
+
+function updateCar(dt){
+  if (carRecall && !car.occupied){
+    const dx = player.x - car.x;
+    const dy = player.y - car.y;
+    const dist = Math.hypot(dx, dy);
+    const targetAngle = Math.atan2(dy, dx);
+    let angleDiff = Math.atan2(Math.sin(targetAngle - car.angle), Math.cos(targetAngle - car.angle));
+
+    // ----- STATE MACHINE -----
+    if (recallState === 'forward'){
+      const avoid = wallAvoidance(car);
+car.angle += (angleDiff * 2.5 + avoid * car.turnSpeed * 1.2) * dt;
+      if (clearAhead(car, 6)){
+        car.speed = Math.min(car.speed + car.accel * 2.5 * dt, car.maxSpeed * 1.2);
+      } else {
+        // wall ahead → pick clear side
+        if (clearAhead(car, 6, Math.PI/4)) recallTurnDir = 1;
+        else if (clearAhead(car, 6, -Math.PI/4)) recallTurnDir = -1;
+        else recallState = 'reverse'; // fully blocked
+        if (recallState !== 'reverse') recallState = 'turn';
+      }
+    }
+    else if (recallState === 'turn'){
+      car.angle += recallTurnDir * car.turnSpeed * 1.8 * dt;
+      car.speed = Math.min(car.speed + car.accel * 0.8 * dt, car.maxSpeed * 0.6);
+      if (clearAhead(car, 6)) recallState = 'forward';
+    }
+    else if (recallState === 'reverse'){
+      car.speed = Math.max(car.speed - car.accel * 2.0 * dt, -car.maxSpeed * 0.35);
+      if (clearAhead(car, 6)) recallState = 'forward';
+    }
+
+    // ----- APPLY MOVEMENT -----
+    const moveX = Math.cos(car.angle) * car.speed * dt;
+    const moveY = Math.sin(car.angle) * car.speed * dt;
+
+    if (!safeMove(car, moveX, 0)) car.speed *= 0.5;
+    if (!safeMove(car, 0, moveY)) car.speed *= 0.5;
+
+    // ----- ARRIVAL -----
+    if (dist < 55){
+      car.speed = 0;
+      carRecall = false;
+      recallState = 'forward';
+      player.inCar = true;
+      car.occupied = true;
+      modeText.textContent = 'Driving';
+      showVehicleUI(true);
+    }
+
+    return; // block normal driving
+  }
+  
+
+  const steer = (carInput.left ? -1 : 0) + (carInput.right ? 1 : 0) + (inputKeys['a']? -1:0) + (inputKeys['d']?1:0);
+  const forwardPressed = (carInput.up || inputKeys['w']);
+  const reversePressed = (carInput.down || inputKeys['s']);
+  // ---- NITRO LOGIC ----
+const usingNitro = nitroPressed && car.nitro > 0;
+
+const nitroBoost = usingNitro ? 1.6 : 1.0;
+const nitroAccelBoost = usingNitro ? 2.2 : 1.0;
+
+const forwardOrNitro = forwardPressed || usingNitro;
+
+let targetSpeed = 0;
+
+if (forwardPressed || usingNitro) {
+  targetSpeed = car.maxSpeed * nitroBoost;
+}
+else if (reversePressed) {
+  targetSpeed = -car.maxSpeed * REVERSE_FACTOR;
+}
+  if (car.speed < targetSpeed) {
+  car.speed = Math.min(car.speed + car.accel * nitroAccelBoost * dt, targetSpeed);
+}
+else if (car.speed > targetSpeed) {
+  car.speed = Math.max(car.speed - car.accel * dt, targetSpeed);
+}
+
+  const steerFactor = (Math.abs(car.speed) > 1) ? (car.speed > 0 ? 1 : 0.55) : 1;
+  car.angle += steer * car.turnSpeed * dt * (Math.abs(car.speed)/car.maxSpeed + 0.49) * steerFactor;
+
+  const moveX = Math.cos(car.angle) * car.speed * dt, moveY = Math.sin(car.angle) * car.speed * dt;
+  // step axis by axis with safeMove
+  if (!safeMove(car, moveX, 0)){
+    car.x -= Math.sign(moveX) * Math.min(Math.abs(moveX)*0.5, 12); car.speed *= -0.3;
+    if (Math.abs(moveX) > 10 * dt) car.hp = Math.max(0, car.hp - Math.floor(Math.abs(moveX)*0.2));
+  }
+  if (!safeMove(car, 0, moveY)){
+    car.y -= Math.sign(moveY) * Math.min(Math.abs(moveY)*0.5, 12); car.speed *= -0.3;
+    if (Math.abs(moveY) > 10 * dt) car.hp = Math.max(0, car.hp - Math.floor(Math.abs(moveY)*0.2));
+  }
+  if (tileAt(car.x,car.y) === 'building'){ car.x -= Math.cos(car.angle)*8; car.y -= Math.sin(car.angle)*8; car.speed=0; car.hp = Math.max(0,car.hp - 10); }
+  if (tileAt(car.x,car.y) === 'water') car.hp = 0;
+  if (car.occupied){ player.x = car.x - Math.cos(car.angle)*26; player.y = car.y - Math.sin(car.angle)*26; }
+  
+  // ---- NITRO DRAIN / REGEN ----
+if (usingNitro){
+  car.nitro -= car.nitroDrain * dt;
+  if (car.nitro < 0) car.nitro = 0;
+}
+else {
+  car.nitro += car.nitroRegen * dt;
+  if (car.nitro > car.maxNitro) car.nitro = car.maxNitro;
+}
+// ==== CAR RESPAWN LOGIC ====
+if (!car.exists) {
+    setTimeout(() => {
+        // respawn the car safely offset from the player
+        car.x = player.x + 60;
+        car.y = player.y + 6;
+        car.speed = 0;
+        car.angle = 0;
+        car.hp = 1;
+        car.exists = true;
+        car.occupied = false;
+        car.exploded = false;
+    }, 1000);
+    car.exists = true; // prevent multiple timers
+}
+}
+
+function updateGiant(dt) {
+
+if (!giant.aggro && !giant.dead) {
+    return; // inactive before aggro, but ALLOW death logic
+}
+    
+// ── GIANT DEATH ──
+if (giant.hp <= 0 && !giant.dead) {
+    giant.hp = 0;
+    giant.dead = true;
+    giant.state = 'dead';
+    giant.deathTimer = 0;
+
+    player.inGiantAura = false;
+    player.speedMultiplier = 1;
+}
+    if (giant.dead) {
+    giant.deathTimer += dt;
+    return;
+    }
+
+
+// ── REVEAL GIANT HP WHEN PLAYER COMES NEAR ──
+const revealDist = 520;
+
+if (!giant.hpRevealed) {
+    const dxp = player.x - giant.x;
+    const dyp = player.y - giant.y;
+    const d = Math.hypot(dxp, dyp);
+
+    if (d < revealDist) {
+        giant.hpRevealed = true;
+    }
+}
+
+    // ───────────────── TARGET SELECTION ─────────────────
+    giant.pickCooldown -= dt;
+    if (!giant.targetX || giant.pickCooldown <= 0) {
+        giant.targetX = Math.random() * MAP_W * TILE;
+        giant.targetY = Math.random() * MAP_H * TILE;
+        giant.pickCooldown = 3 + Math.random() * 3;
+    }
+
+    const dx = giant.targetX - giant.x;
+    const dy = giant.targetY - giant.y;
+    const targetAngle = Math.atan2(dy, dx);
+
+    let angleDiff = targetAngle - giant.angle;
+    angleDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
+
+    // ───────────────── STATE TIMER ─────────────────
+    giant.stateTimer += dt;
+
+    // ───────────────── STATE MACHINE ─────────────────
+    switch (giant.state) {
+
+        // ───── WALK ─────
+        case 'walk': {
+
+    // turning (heavy)
+    const maxTurn = giant.turnSpeed * dt;
+    if (Math.abs(angleDiff) < maxTurn) {
+        giant.angle = targetAngle;
+    } else {
+        giant.angle += Math.sign(angleDiff) * maxTurn;
+    }
+
+    // move only when mostly facing target
+    if (Math.abs(angleDiff) < 0.15) {
+        giant.x += Math.cos(giant.angle) * giant.speed * dt;
+        giant.y += Math.sin(giant.angle) * giant.speed * dt;
+    }
+
+    // ── SHOOTING (TYPE 1: TRIPLE SHOT) ──
+    giant.shootTimer += dt;
+
+    if (giant.shootTimer >= giant.shootCooldown) {
+        giant.shootTimer = 0;
+
+        const px = player.x - giant.x;
+        const py = player.y - giant.y;
+        const baseAngle = Math.atan2(py, px);
+
+        for (let i = -1; i <= 1; i++) {
+            spawnGiantProjectile(
+                giant.x,
+                giant.y,
+                baseAngle + i * 0.25,
+                500,
+                12,
+                12,
+                '#ff5cff'
+            );
+        }
+    }
+    
+    giant.laserTimer -= dt;
+
+if (giant.laserTimer <= 0 && Math.random() < 0.4) {
+    giant.state = 'laserCharge';
+    giant.stateTimer = 0;
+    break;
+}
+
+    // dash trigger
+    giant.dashCooldown -= dt;
+    if (giant.dashCooldown <= 0) {
+        giant.state = 'charge';
+        giant.stateTimer = 0;
+    }
+
+    break;
+}
+        // ───── CHARGE (anticipation) ─────
+        case 'charge': {
+
+            // ONLY TURN — no movement
+            const maxTurn = giant.turnSpeed * dt;
+            if (Math.abs(angleDiff) < maxTurn) {
+                giant.angle = targetAngle;
+            } else {
+                giant.angle += Math.sign(angleDiff) * maxTurn;
+            }
+
+            if (giant.stateTimer >= giant.chargeTime) {
+                giant.state = 'dash';
+                giant.stateTimer = 0;
+            }
+            break;
+        }
+
+        // ───── DASH ─────
+        case 'dash': {
+
+    giant.x += Math.cos(giant.angle) * giant.dashSpeed * dt;
+    giant.y += Math.sin(giant.angle) * giant.dashSpeed * dt;
+
+    if (giant.stateTimer >= giant.dashTime) {
+
+        // ── SHOOTING (TYPE 2: SHOCKWAVE BURST) ──
+        for (let i = 0; i < 10; i++) {
+            const a = giant.angle + (i - 5) * 0.2;
+            spawnGiantProjectile(
+                giant.x,
+                giant.y,
+                a,
+                1000,
+                10,
+                12,
+                '#ff9cff',
+                1.2
+            );
+        }
+
+        giant.state = 'recover';
+        giant.stateTimer = 0;
+    }
+
+    break;
+}
+
+        // ───── RECOVER ─────
+        case 'recover': {
+
+            // slow drift
+            giant.x += Math.cos(giant.angle) * giant.speed * 0.4 * dt;
+            giant.y += Math.sin(giant.angle) * giant.speed * 0.4 * dt;
+
+            if (giant.stateTimer >= giant.recoverTime) {
+                giant.state = 'walk';
+                giant.stateTimer = 0;
+                giant.dashCooldown = 2 + Math.random() * 3;
+            }
+            break;
+        }
+        
+       case 'laserCharge': {
+
+    // turn to face player ONLY
+    const dx = player.x - giant.x;
+    const dy = player.y - giant.y;
+    giant.laserAngle = Math.atan2(dy, dx);
+
+    giant.angle += Math.atan2(
+        Math.sin(giant.laserAngle - giant.angle),
+        Math.cos(giant.laserAngle - giant.angle)
+    ) * dt * 3;
+
+    if (giant.stateTimer >= giant.laserChargeTime) {
+        giant.state = 'laserFire';
+        giant.stateTimer = 0;
+        spawnInstantGiantGround();
+    }
+    break;
+}
+
+case 'laserFire': {
+
+    // NO movement
+    applyGiantLaserDamage(dt);
+
+    if (giant.stateTimer >= giant.laserFireTime) {
+        giant.state = 'walk';
+        giant.stateTimer = 0;
+        giant.laserTimer = giant.laserCooldown;
+        giant.groundActive = false;
+        giantGroundTiles.length = 0;
+    }
+    break;
+}
+    }
+
+    // ===== GIANT PROXIMITY EFFECT =====
+    if (!giant.dead) {
+const pdx = player.x - giant.x;
+const pdy = player.y - giant.y;
+const pdist = Math.hypot(pdx, pdy);
+
+if (pdist < giant.auraRadius) {
+
+    player.inGiantAura = true;
+
+    // slow player
+    player.speedMultiplier = giant.auraSlow;
+
+    let dmg = giant.auraDamage * dt;
+
+    // drain armor first
+    if (player.armor > 0) {
+        const drain = Math.min(player.armor, dmg);
+        player.armor -= drain;
+        dmg -= drain;
+    }
+
+    // then drain HP
+    if (dmg > 0) {
+        player.hp = Math.max(0, player.hp - dmg);
+    }
+
+} else {
+
+    player.inGiantAura = false;
+    player.speedMultiplier = 1;
+}
+}
+}
+
+
+
+
+/* -------------------------------------------------------------------
+   DRAWING (uses small helpers)
+   ------------------------------------------------------------------- */
+function drawTile(ctx,t,px,py,size){
+  if (t === 'water') ctx.fillStyle = '#1da3ff';
+  else if (t === 'park') ctx.fillStyle = '#58b25a';
+  else if (t === 'building') ctx.fillStyle = '#2f2f2f';
+  else ctx.fillStyle = '#bfbfbf';
+  ctx.fillRect(px,py,size,size);
+}
+
+function draw(){
+  ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+  const camX = player.inCar ? car.x : player.x;
+  const camY = player.inCar ? car.y : player.y;
+  const vw = canvas.clientWidth, vh = canvas.clientHeight;
+  const startCol = Math.floor((camX - vw/2)/TILE) - 2;
+  const startRow = Math.floor((camY - vh/2)/TILE) - 2;
+  const cols = Math.ceil(vw/TILE) + 6, rows = Math.ceil(vh/TILE) + 6;
+
+  for (let r=0;r<rows;r++){
+    for (let c=0;c<cols;c++){
+      const tx = startCol + c, ty = startRow + r;
+      if (tx<0||ty<0||tx>=MAP_W||ty>=MAP_H) continue;
+      const t = world[ty][tx];
+      const px = tx*TILE - camX + vw/2, py = ty*TILE - camY + vh/2;
+      drawTile(ctx,t,px,py,TILE);
+    }
+  }
+
+  // car
+if (car.exists){
+  const sx = car.x - camX + vw/2, sy = car.y - camY + vh/2;
+
+  // Nitro effect (flickering flame)
+  if (nitroPressed) {
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(car.angle);
+
+    // Flicker size
+    const flameLength = 10 + Math.random() * 10; // length varies 10-20
+    const flameHeight = car.h / 2 + Math.random() * 4 - 2; // slight vertical flicker
+
+    // Gradient for flame
+    const grad = ctx.createLinearGradient(-car.w/2 - flameLength, 0, -car.w/2, 0);
+    grad.addColorStop(0, 'rgba(255,255,0,0.8)'); // yellow
+    grad.addColorStop(0.5, 'orange');
+    grad.addColorStop(1, 'red');
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(-car.w/2 - flameLength, -flameHeight/2, flameLength, flameHeight);
+
+    ctx.restore();
+  }
+
+  // draw the car itself
+  ctx.save(); 
+  ctx.translate(sx,sy); 
+  ctx.rotate(car.angle);
+  ctx.fillStyle = '#ff6b6b'; 
+  ctx.fillRect(-car.w/2,-car.h/2,car.w,car.h);
+  ctx.fillStyle='rgba(255,255,255,0.4)'; 
+  ctx.fillRect(4 - car.w/2, -car.h/2 + 2, car.w/2 - 6, car.h - 4);
+  ctx.restore();
+}
+
+  // player
+if (!player.inCar){
+
+  const baseX = player.x - camX + vw/2;
+  const baseY = player.y - camY + vh/2;
+
+  let p = 1;
+
+  if (player.spawning){
+    p = player.spawnTimer / player.spawnDuration;
+    p = Math.min(p, 1);
+
+    // flicker slices (glitch)
+    if (Math.floor(performance.now() / player.spawnFlickerRate) % 2 === 0){
+      return;
+    }
+  }
+
+  ctx.save();
+
+  // teleport instability
+  if (player.spawning){
+    const shake = (1 - p) * player.spawnShake;
+    ctx.translate(
+      baseX + (Math.random() - 0.5) * shake,
+      baseY + (Math.random() - 0.5) * shake
+    );
+
+    // vertical snap distortion
+    ctx.scale(1, 1 + (1 - p) * 0.8);
+    ctx.globalAlpha = p;
+  } else {
+    ctx.translate(baseX, baseY);
+  }
+
+  // ── PLAYER BODY ──
+  ctx.fillStyle = '#E4D6F5';
+  ctx.beginPath();
+  ctx.arc(0, 0, player.r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ── PLAYER EYES ──
+  const mag = Math.hypot(player.lookX, player.lookY) || 1;
+  const lx = player.lookX / mag;
+  const ly = player.lookY / mag;
+
+  const eyeOffset = 6;
+  const eyeSpread = 4;
+
+  ctx.fillStyle = '#000';
+
+  // left eye
+  ctx.beginPath();
+  ctx.arc(
+    lx * eyeOffset - ly * eyeSpread,
+    ly * eyeOffset + lx * eyeSpread,
+    2.2, 0, Math.PI * 2
+  );
+  ctx.fill();
+
+  // right eye
+  ctx.beginPath();
+  ctx.arc(
+    lx * eyeOffset + ly * eyeSpread,
+    ly * eyeOffset - lx * eyeSpread,
+    2.2, 0, Math.PI * 2
+  );
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// ===== GIANT — THE CROWNED MASS (TOP-DOWN) =====
+if (!giant.dead || giant.deathTimer < giant.deathDuration) {
+const camX2 = player.inCar ? car.x : player.x;
+const camY2 = player.inCar ? car.y : player.y;
+
+const gx = giant.x - camX2 + canvas.clientWidth / 2;
+const gy = giant.y - camY2 + canvas.clientHeight / 2;
+
+ctx.save();
+ctx.translate(gx, gy);
+ctx.rotate(giant.angle);
+
+if (giant.dead) {
+  const t = giant.deathTimer / giant.deathDuration;
+  const collapse = 1 - t;
+
+  ctx.scale(1 + t * 0.4, collapse);
+  ctx.globalAlpha = collapse;
+}
+
+// ── dash / charge visual states ──
+if (giant.state === 'charge') {
+  ctx.scale(1.12, 0.88); // compress (anticipation)
+}
+
+if (giant.state === 'dash') {
+  ctx.scale(1.28, 0.78); // stretch forward (burst)
+}
+
+if (giant.state === 'recover') {
+  ctx.scale(0.92, 1.08); // heavy slowdown feel
+}
+
+// ── subtle breathing / pressure motion ──
+const breathe = Math.sin(performance.now() * 0.0025) * 8;
+ctx.scale(1 + breathe * 0.002, 1 - breathe * 0.002);
+
+// ───────────────── CONTACT SHADOW ─────────────────
+ctx.save();
+ctx.scale(1.1, 0.9);
+
+ctx.fillStyle = 'rgba(0,0,0,0.25)';
+ctx.beginPath();
+ctx.ellipse(0, 0, giant.w * 0.48, giant.h * 0.48, 0, 0, Math.PI * 2);
+ctx.fill();
+
+ctx.fillStyle = 'rgba(0,0,0,0.42)';
+ctx.beginPath();
+ctx.ellipse(0, 0, giant.w * 0.32, giant.h * 0.32, 0, 0, Math.PI * 2);
+ctx.fill();
+
+ctx.restore();
+
+// ───────────────── MAIN MASS (ORGANIC) ─────────────────
+ctx.fillStyle = '#2a0f2a';
+ctx.beginPath();
+ctx.arc(0, 0, giant.w * 0.45, 0, Math.PI * 2);
+ctx.fill();
+
+// organic shading
+const massGrad = ctx.createRadialGradient(
+  -giant.w * 0.2,
+  -giant.h * 0.2,
+  giant.w * 0.1,
+  0,
+  0,
+  giant.w * 0.5
+);
+massGrad.addColorStop(0, 'rgba(255,255,255,0.08)');
+massGrad.addColorStop(1, 'rgba(0,0,0,0.45)');
+ctx.fillStyle = massGrad;
+ctx.beginPath();
+ctx.arc(0, 0, giant.w * 0.45, 0, Math.PI * 2);
+ctx.fill();
+
+// ───────────────── ASYMMETRIC GROWTHS ─────────────────
+ctx.fillStyle = '#3b1540';
+
+for (let i = 0; i < 6; i++) {
+  const a = i * (Math.PI * 2 / 6) + Math.sin(performance.now() * 0.001 + i) * 0.2;
+  const r = giant.w * (0.38 + Math.random() * 0.03);
+
+  ctx.beginPath();
+  ctx.arc(
+    Math.cos(a) * r,
+    Math.sin(a) * r,
+    giant.w * (0.08 + (i % 2) * 0.03),
+    0,
+    Math.PI * 2
+  );
+  ctx.fill();
+}
+
+// ───────────────── VEINS / CRACKS ─────────────────
+ctx.strokeStyle = 'rgba(255,120,255,0.15)';
+ctx.lineWidth = 3;
+
+for (let i = 0; i < 8; i++) {
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(
+    (Math.random() - 0.5) * giant.w * 0.7,
+    (Math.random() - 0.5) * giant.h * 0.7
+  );
+  ctx.stroke();
+}
+
+// ───────────────── CORE EYE / HEART ─────────────────
+let pulse = (Math.sin(performance.now() * 0.004) + 1) * 0.5;
+
+if (giant.state === 'charge') pulse += 0.4;
+if (giant.state === 'dash') pulse += 0.9;
+
+ctx.shadowColor = '#ff3cff';
+ctx.shadowBlur = 40 * pulse;
+
+ctx.fillStyle = '#ffd6ff';
+ctx.beginPath();
+ctx.arc(0, 0, giant.w * (0.10 + pulse * 0.02), 0, Math.PI * 2);
+ctx.fill();
+
+ctx.shadowBlur = 0;
+
+// pupil (always facing forward)
+ctx.fillStyle = '#2a002a';
+ctx.beginPath();
+ctx.arc(giant.w * 0.05, 0, giant.w * 0.03, 0, Math.PI * 2);
+ctx.fill();
+
+// ───────────────── DASH STREAKS ─────────────────
+if (giant.state === 'dash') {
+  ctx.strokeStyle = 'rgba(255,120,255,0.35)';
+  ctx.lineWidth = 10;
+
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(
+      -giant.w * (0.25 + i * 0.05),
+      (Math.random() - 0.5) * giant.h * 0.25
+    );
+    ctx.lineTo(
+      -giant.w * (0.75 + i * 0.08),
+      (Math.random() - 0.5) * giant.h * 0.4
+    );
+    ctx.stroke();
+  }
+}
+ctx.restore();
+}
+
+// ───────────────── BOSS HP BAR (SCREEN) ─────────────────
+if (giant.hpRevealed && giant.hp > 0) {
+
+    const barWidth = canvas.clientWidth * 0.6;
+    const barHeight = 18;
+    const barX = (canvas.clientWidth - barWidth) / 2;
+    const barY = 150;
+
+    const hpRatio = Math.max(0, Math.min(1, giant.hp / giant.maxHp));
+
+    // background
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+
+    // HP fill
+    ctx.fillStyle = '#ff2d2d';
+    ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
+
+    // frame
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+    // label
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('BEAST', canvas.clientWidth / 2, barY - 6);
+}
+
+// ───────────────── GIANT PROJECTILES ─────────────────
+for (const p of giantProjectiles) {
+
+    const camX = player.inCar ? car.x : player.x;
+    const camY = player.inCar ? car.y : player.y;
+
+    const px = p.x - camX + canvas.clientWidth / 2;
+    const py = p.y - camY + canvas.clientHeight / 2;
+
+    ctx.save();
+
+    // glow
+    ctx.shadowColor = p.color;
+    ctx.shadowBlur = 25;
+
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(px, py, p.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+
+    ctx.restore();
+}
+
+// ───────────────── GIANT LASER (GOD MODE) ─────────────────
+if (giant.state === 'laserCharge' || giant.state === 'laserFire') {
+
+    const camX = player.inCar ? car.x : player.x;
+    const camY = player.inCar ? car.y : player.y;
+
+    const sx = giant.x - camX + canvas.clientWidth / 2;
+    const sy = giant.y - camY + canvas.clientHeight / 2;
+
+    const len = 1400;
+    const t = performance.now() * 0.001;
+
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(giant.laserAngle);
+
+    // ── SCREEN SHAKE (SUBTLE) ──
+    if (giant.state === 'laserFire') {
+        ctx.translate(
+            (Math.random() - 0.5) * 3,
+            (Math.random() - 0.5) * 3
+        );
+    }
+
+    // ── CHARGE FUNNEL ──
+    if (giant.state === 'laserCharge') {
+        for (let i = 0; i < 6; i++) {
+            ctx.strokeStyle = `rgba(255,140,255,${0.15 - i * 0.02})`;
+            ctx.lineWidth = giant.laserWidth * (1.8 + i * 0.3);
+
+            ctx.beginPath();
+            ctx.moveTo(-40 - i * 20, 0);
+            ctx.lineTo(0, 0);
+            ctx.stroke();
+        }
+    }
+
+    // ── OUTER PLASMA HALO ──
+    if (giant.state === 'laserFire') {
+        ctx.shadowColor = '#ff3cff';
+        ctx.shadowBlur = 70;
+
+        ctx.strokeStyle = 'rgba(255,70,255,0.22)';
+        ctx.lineWidth = giant.laserWidth * 3.2;
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(len, 0);
+        ctx.stroke();
+    }
+
+    // ── SPIRAL ENERGY WAVES ──
+    if (giant.state === 'laserFire') {
+        for (let i = 0; i < 2; i++) {
+            ctx.strokeStyle = 'rgba(255,170,255,0.35)';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            for (let x = 0; x < len; x += 16) {
+                const y = Math.sin(x * 0.05 + t * 8 + i * Math.PI) * 8;
+                ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+    }
+
+    // ── MAIN BEAM ──
+    const grad = ctx.createLinearGradient(0, 0, len, 0);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.15, '#ffd6ff');
+    grad.addColorStop(0.5, '#ff6cff');
+    grad.addColorStop(1, 'rgba(255,80,255,0.2)');
+
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = giant.laserWidth * 1.4;
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(len, 0);
+    ctx.stroke();
+
+    // ── WHITE-HOT CORE ──
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = giant.laserWidth * 0.45;
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(len, 0);
+    ctx.stroke();
+
+    // ── TRAVELING SPARKS ──
+    if (giant.state === 'laserFire') {
+        spawnLaserSparks(len);
+    }
+
+    // ── IMPACT BLOOM ──
+    if (giant.state === 'laserFire') {
+        ctx.save();
+        ctx.translate(len, 0);
+
+        ctx.fillStyle = 'rgba(255,180,255,0.6)';
+        ctx.shadowColor = '#ffb6ff';
+        ctx.shadowBlur = 60;
+
+        ctx.beginPath();
+        ctx.arc(0, 0, 28 + Math.sin(t * 10) * 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    ctx.restore();
+}
+
+// ───────── CORRUPTED GROUND (LASER COMBO) ─────────
+for (const t of giantGroundTiles) {
+
+    const camX = player.inCar ? car.x : player.x;
+    const camY = player.inCar ? car.y : player.y;
+
+    const x = t.x - camX + canvas.clientWidth / 2;
+    const y = t.y - camY + canvas.clientHeight / 2;
+
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.shadowColor = '#ff3cff';
+    ctx.shadowBlur = 30;
+
+    ctx.fillStyle = '#ff2cff';
+    ctx.beginPath();
+    ctx.arc(x, y, t.r, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+}
+
+// ---------- PEACE OBJECT DRAW ----------
+if (peaceObject.exists && !peaceObject.triggered) {
+    const camX = player.inCar ? car.x : player.x;
+    const camY = player.inCar ? car.y : player.y;
+
+    const px = peaceObject.x - camX + canvas.clientWidth / 2;
+    const py = peaceObject.y - camY + canvas.clientHeight / 2;
+
+    const time = performance.now() * 0.001;
+
+    ctx.save();
+    ctx.translate(px, py);
+
+    // ── outer rotating ring ──
+    ctx.rotate(time * 0.25);
+    ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
+    ctx.lineWidth = 2;
+
+    ctx.beginPath();
+    for (let i = 0; i < Math.PI * 2; i += Math.PI / 24) {
+        const pulse = Math.sin(i * 4 + time * 3) * 3;
+        const r = peaceObject.r + pulse;
+
+        ctx.lineTo(Math.cos(i) * r, Math.sin(i) * r);
+    }
+    ctx.closePath();
+    ctx.stroke();
+
+    // ── inner core ──
+    const corePulse = (Math.sin(time * 2) + 1) * 0.5;
+    ctx.shadowColor = 'rgba(0,255,255,0.8)';
+    ctx.shadowBlur = 20 + corePulse * 15;
+
+    ctx.fillStyle = 'rgba(120,255,255,0.85)';
+    ctx.beginPath();
+    ctx.arc(0, 0, peaceObject.r * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ── scanning lines ──
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(0,255,255,0.35)';
+    ctx.lineWidth = 1;
+
+    for (let i = 0; i < 3; i++) {
+        const a = time * 1.5 + i * (Math.PI * 2 / 3);
+        ctx.beginPath();
+        ctx.moveTo(
+            Math.cos(a) * peaceObject.r * 0.45,
+            Math.sin(a) * peaceObject.r * 0.45
+        );
+        ctx.lineTo(
+            Math.cos(a) * peaceObject.r * 0.85,
+            Math.sin(a) * peaceObject.r * 0.85
+        );
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
+// ---------- PEACE OBJECT DRAW ----------
+if (peaceObject.exists && !peaceObject.triggered) {
+    const camX = player.inCar ? car.x : player.x;
+    const camY = player.inCar ? car.y : player.y;
+
+    const px = peaceObject.x - camX + canvas.clientWidth / 2;
+    const py = peaceObject.y - camY + canvas.clientHeight / 2;
+
+    const t = performance.now() * 0.001;
+
+    ctx.save();
+    ctx.translate(px, py);
+
+    // ── outer containment ring (SOLID) ──
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, peaceObject.r * 1.3, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // ── inner ring ──
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(0, 0, peaceObject.r * 0.85, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // ── central vertical pillar ──
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, -peaceObject.r * 1.1);
+    ctx.lineTo(0, peaceObject.r * 1.1);
+    ctx.stroke();
+
+    // ── rigid cross bars (mechanical, not holy) ──
+    ctx.lineWidth = 2;
+    for (let i = -2; i <= 2; i++) {
+        if (i === 0) continue;
+
+        ctx.beginPath();
+        ctx.moveTo(-peaceObject.r * 0.4, i * 10);
+        ctx.lineTo(peaceObject.r * 0.4, i * 10);
+        ctx.stroke();
+    }
+
+    // ── core node (ABSOLUTE, no glow) ──
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(0, 0, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+}
+
+  // bullets
+  bullets.forEach(b=>{ const bx=b.x-camX+vw/2, by=b.y-camY+vh/2; ctx.beginPath(); ctx.fillStyle = b.owner==='player' ? '#fff' : '#ffd1d1'; ctx.arc(bx,by,3,0,Math.PI*2); ctx.fill(); });
+
+  drawMinimap();
+}
+
+/* minimap and fullmap re-use drawTile color map */
+function drawMinimap(){
+  mctx.clearRect(0,0,mini.clientWidth,mini.clientHeight);
+  const TILE_VIEW = 10;
+  const tileW = mini.clientWidth / TILE_VIEW;
+  const tileH = mini.clientHeight / TILE_VIEW;
+  const centerX = mini.clientWidth/2, centerY = mini.clientHeight/2;
+  const pTileX = player.x / TILE, pTileY = player.y / TILE;
+  const startTileX = Math.floor(pTileX - TILE_VIEW/2), startTileY = Math.floor(pTileY - TILE_VIEW/2);
+
+  for (let y=0;y<TILE_VIEW;y++){
+    for (let x=0;x<TILE_VIEW;x++){
+      const tx = startTileX + x, ty = startTileY + y;
+      if (tx<0||ty<0||tx>=MAP_W||ty>=MAP_H) continue;
+      const t = world[ty][tx];
+      let color;
+      if (t==='water') color='#1da3ff'; else if (t==='park') color='#3aa84f'; else if (t==='building') color='#404040'; else color='#bfbfbf';
+      mctx.fillStyle = color;
+      const dx = (tx - pTileX) * tileW, dy = (ty - pTileY) * tileH;
+      mctx.fillRect(centerX + dx, centerY + dy, tileW, tileH);
+    }
+  }
+  // player & car markers
+  mctx.fillStyle='#00ff00'; mctx.fillRect(centerX-2,centerY-2,4,4);
+  if (car.exists){ const dx=(car.x/TILE - pTileX)*tileW, dy=(car.y/TILE - pTileY)*tileH; mctx.fillStyle='#ff9900'; mctx.fillRect(centerX+dx-2,centerY+dy-2,4,4); }
+  ;
+}
+
+/* map popup */
+mini.addEventListener('click', ()=>{ mapPopup.style.display='flex'; drawFullMap(); });
+mapPopup.addEventListener('click', ()=> mapPopup.style.display='none');
+function drawFullMap(){
+  bctx.clearRect(0,0,bigMapCanvas.width,bigMapCanvas.height);
+  const w = bigMapCanvas.width / MAP_W, h = bigMapCanvas.height / MAP_H;
+  for (let y=0;y<MAP_H;y++){
+    for (let x=0;x<MAP_W;x++){
+      const t=world[y][x];
+      if(t==='water') bctx.fillStyle='#1da3ff';
+      else if(t==='park') bctx.fillStyle='#3aa84f';
+      else if(t==='building') bctx.fillStyle='#404040';
+      else bctx.fillStyle='#bfbfbf';
+      bctx.fillRect(x*w, y*h, w, h);
+    }
+  }
+  bctx.fillStyle='#00ff00'; bctx.fillRect(player.x/TILE*w-2, player.y/TILE*h-2, 4,4);
+  if (car.exists){ bctx.fillStyle='#ff9900'; bctx.fillRect(car.x/TILE*w-2, car.y/TILE*h-2, 4,4); };      
+}
+
+/* -------------------------------------------------------------------
+   start
+   ------------------------------------------------------------------- */
+spawnPeaceObjectRandom();
+spawnGiantAtRandomTile();
+last = performance.now(); requestAnimationFrame(update);
+</script>
+</body>
+</html>

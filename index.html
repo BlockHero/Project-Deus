@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aeon Studios Menu</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&display=swap" rel="stylesheet">
+<style>
+body, html {margin:0;padding:0;height:100%;overflow:hidden;font-family:'Playfair Display', serif;background:#000;color:#fff;}
+
+#introOverlay,#tapOverlay,#menuScreen,#guidePopup,#gameStartScreen{position:absolute;inset:0;display:flex;justify-content:center;align-items:center;flex-direction:column;transition: opacity 1s ease;}
+#introOverlay{background:#000;z-index:100;opacity:1;}
+#introOverlay h1,#introOverlay h2{margin:0;text-align:center;opacity:0;}
+#introOverlay h1{color:#CF0707;font-size:clamp(2rem,6vw,3rem);animation:fadeInText 2s forwards 0.5s;font-family: 'Roboto', sans-serif;}
+#introOverlay h2{color:#CF0707;font-size:clamp(1rem,4vw,1.5rem);animation:fadeInText 2s forwards 2.5s;font-family: 'Roboto', sans-serif;}
+@keyframes fadeInText { to { opacity:1; } }
+
+#tapOverlay{background:#FFFBFC;z-index:90;flex-direction:column;opacity:0;cursor:pointer;font-family: 'Roboto', sans-serif;color:#000;}
+#tapOverlay.show{opacity:1;transition:opacity 1s ease;}
+#tapOverlay span{font-size:2rem;letter-spacing:0.15em;}
+
+/* ===== MENU SCREEN ===== */
+#menuScreen{
+  display:none;
+  background:#FFFBFC;
+  padding:2rem;
+  opacity:0;
+
+  display:flex;
+  flex-direction:column;
+  gap:3rem;
+}
+#menuScreen.show{
+  display:flex;
+  opacity:1;
+  transition:opacity 1s ease;
+}
+
+/* ===== EYES (TOP CENTER) ===== */
+#eyes{
+  display:flex;
+  justify-content:center;
+  gap:100px;
+}
+
+/* eye dots */
+.eye-dot{
+  width:30px;              /* slightly bigger */
+  height:30px;
+  background:#000;
+  border-radius:50%;
+  animation: blink 5s infinite;
+}
+
+/* blink */
+@keyframes blink{
+  0%, 94%, 100% { transform: scaleY(1); }
+  96%          { transform: scaleY(0.1); }
+}
+
+/* ===== TITLE + BUTTONS ROW ===== */
+.menuBottom{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  width:100%;
+}
+
+/* LEFT SIDE — TITLE */
+#menuTitle{
+  font-size:clamp(2rem,6vw,3rem);
+  color:#000;
+  opacity:0;
+  transform:translateY(-30px);
+  transition:all 1.2s ease;
+  max-width:50%;
+}
+#menuTitle.show{
+  opacity:1;
+  transform:translateY(0);
+}
+
+/* RIGHT SIDE — BUTTONS */
+.menuButtons{
+  display:flex;
+  flex-direction:column;
+  gap:1rem;
+  align-items:flex-end;
+}
+
+.menuBtn{
+  background: transparent;
+  color: #000;
+  border: 1px solid #000;
+  border-radius: 0;
+  font-size: 1.05rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  padding: 14px 28px;
+  cursor: pointer;
+
+  opacity:0;
+  transform:translateY(30px);
+  position: relative;
+  overflow: hidden;
+
+  transition:
+    opacity 0.8s ease,
+    transform 0.15s ease,
+    color 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.menuBtn.show{
+  opacity:1;
+  transform:translateY(0);
+}
+
+.menuBtn::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  bottom:8px;
+  width:0%;
+  height:1px;
+  background:#000;
+  transform:translateX(-50%);
+  transition: width 0.35s ease;
+}
+
+.menuBtn:hover{
+  color:#111;
+  border-color:#111;
+}
+.menuBtn:hover::after{ width:60%; }
+
+.menuBtn:active{
+  transform:scale(0.97);
+}
+.menuBtn:focus-visible{
+  outline:none;
+  border-color:#000;
+}
+.menuBtn:focus-visible::after{
+  width:60%;
+}
+
+#guidePopup{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.9);
+  z-index: 200;
+  display: none;
+  justify-content: center;
+  align-items: center;
+}
+#guidePopup h3{margin-top:0;}
+#guidePopup button{margin-top:1rem; background: transparent; color:#fff; border:1px solid #fff; border-radius:0; font-size:1rem; font-weight:500; letter-spacing:0.08em; padding:12px 28px; cursor:pointer; position: relative; overflow:hidden; transition: transform 0.15s ease, color 0.25s ease, border-color 0.25s ease;}
+#guidePopup button::after{content:""; position:absolute; left:50%; bottom:6px; width:0%; height:1px; background:currentColor; transform: translateX(-50%); transition: width 0.35s ease;}
+#guidePopup button:hover::after{width:60%;}
+#guidePopup button:active{transform: scale(0.96);}
+#guidePopup button:focus-visible{outline:none;}
+.guideBox{
+  background:#000;
+  border:1px solid #fff;
+  padding:2rem 2.5rem;
+  max-width:420px;
+  width:90%;
+  text-align:center;
+}
+
+#gameStartScreen{display:none;flex-direction:column;justify-content:center;align-items:center;background:#111;}
+#tileBox{position: relative; width: 300px; height: 300px; overflow: hidden; border: 2px solid #0f0;}
+.layer {
+  position: absolute;
+  inset:0;
+  background-size: cover;
+  transition: transform 0.1s linear;
+}
+
+/* base layer visible */
+.layer.base {
+  opacity: 1;
+}
+
+/* glitch layers hidden initially */
+.layer.red,
+.layer.cyan {
+  opacity: 0;
+}
+.layer.red{filter: hue-rotate(200deg) brightness(1.2);}
+.layer.cyan{filter: hue-rotate(90deg) brightness(1.1);}
+.layerSlice{position: absolute; left:0; width:100%; background-size: cover; z-index:10; pointer-events:none;}
+#openingText{color:#fff;margin-bottom:4rem;margin-top:4rem;text-align:center;}
+#continueBtn{background: transparent; color:#fff; border:1px solid #fff; border-radius:0; font-size:1rem; font-weight:500; letter-spacing:0.08em; padding:12px 28px; cursor:pointer; position: relative; overflow:hidden; display:none; transition: transform 0.15s ease, color 0.25s ease, border-color 0.25s ease;}
+#continueBtn::after{content:""; position:absolute; left:50%; bottom:6px; width:0%; height:1px; background:currentColor; transform: translateX(-50%); transition: width 0.35s ease;}
+#continueBtn:hover::after{width:60%;}
+#continueBtn:active{transform: scale(0.96);}
+#continueBtn:focus-visible{outline:none;}
+#versionText{position:absolute;bottom:12px;left:12px;font-size:0.8rem;color:#999;}
+
+#buttonWrapper {
+  display: flex;
+  justify-content: center; /* center button under text */
+  margin-top: 1rem;
+}
+
+/* Landscape layout for game start screen */
+@media (orientation: landscape) {
+  #gameStartScreen {
+    flex-direction: row;
+    justify-content: flex-start; /* start from left */
+    align-items: center;
+    gap: 2rem;
+    padding: 2rem;
+  }
+
+  #tileBox {
+    width: 300px;
+    height: 300px;
+    flex-shrink: 0;
+    position: relative; /* fix its position in the row */
+  }
+
+  #textWrapper {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1rem;
+    max-width: 50%;
+  }
+
+  #buttonWrapper {
+    display: flex;
+    justify-content: center; /* center button under text */
+  }
+}
+</style>
+</head>
+<body>
+
+<div id="introOverlay">
+  <h1>AEON STUDIOS</h1>
+  <h2>presents</h2>
+</div>
+
+<div id="tapOverlay"><span>Tap to continue</span></div>
+
+<div id="menuScreen">
+
+  <div id="eyes">
+    <div class="eye-dot"></div>
+    <div class="eye-dot"></div>
+  </div>
+
+  <div class="menuBottom">
+    <div id="menuTitle">Project Deus</div>
+
+    <div class="menuButtons">
+      <button class="menuBtn" id="enterBtn">Enter</button>
+      <button class="menuBtn" id="guideBtn">Guide</button>
+    </div>
+  </div>
+
+</div>
+
+<div id="guidePopup">
+  <div class="guideBox">
+    <h3>Guide to navigate around CONSTRUCT</h3>
+    <p>1. On foot controls - Use Joystick to move around 🔫 button to shoot bullets. 🚗 button to call DEVASTER. 🚘 button to enter DEVASTER. 🏃 button to run.</p>
+
+<p>2.  DEVASTER controls - Use Arrow keys to move around. 🔥 button for nitro boost. 🚪 to exit. Use DEVASTER as your weapon to survive.</p> 
+
+<p>3. Enter different zones from bridge roads going out of city.</p>
+
+<p>4. You got full screen button here next to pause button to make game full screen.</p> 
+
+<p>5. Fury - Killing spirits will give you 🔥 points (and no, it got nothing to do with nitro boost). Higher the Fury = more HUNTERS after you. </p>
+    <button id="closeGuideBtn">Close</button>
+  </div>
+</div>
+
+<div id="gameStartScreen">
+  <div id="tileBox">
+    <div class="layer base" style="background: url('teleport.jpg') center/cover no-repeat;"></div>
+    <div class="layer red" style="background: url('teleport.jpg') center/cover no-repeat;"></div>
+    <div class="layer cyan" style="background: url('teleport.jpg') center/cover no-repeat;"></div>
+  </div>
+
+  <div id="textWrapper">
+    <div id="openingText"></div>
+    <div id="buttonWrapper">
+      <button id="continueBtn">Continue</button>
+    </div>
+  </div>
+</div>
+
+<div id="versionText">v3.1</div>
+<audio id="menuMusic" loop src="menu.mp3"></audio>
+
+<script>
+// Intro
+setTimeout(()=>{const intro=document.getElementById('introOverlay');intro.style.opacity=0;setTimeout(()=>{intro.style.display='none';document.getElementById('tapOverlay').classList.add('show');},1000);},7500);
+
+// Tap overlay
+document.getElementById('tapOverlay').addEventListener('click',()=>{
+goFullscreen(); 
+  document.getElementById('tapOverlay').style.display='none';
+  const menu=document.getElementById('menuScreen');menu.classList.add('show');
+  const music=document.getElementById('menuMusic');if(music)music.play();
+  setTimeout(()=>{document.getElementById('menuTitle').classList.add('show');},200);
+  document.querySelectorAll('.menuBtn').forEach((btn,i)=>{setTimeout(()=>{btn.classList.add('show');},400+i*150);});
+});
+
+function goFullscreen() {
+  const el = document.documentElement;
+  if (el.requestFullscreen) el.requestFullscreen();
+  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen(); // Safari
+  else if (el.msRequestFullscreen) el.msRequestFullscreen(); // IE
+}
+
+// Guide popup
+document.getElementById('guideBtn').addEventListener('click',()=>{document.getElementById('guidePopup').style.display='flex';});
+document.getElementById('closeGuideBtn').addEventListener('click',()=>{document.getElementById('guidePopup').style.display='none';});
+
+// Enter game
+document.getElementById('enterBtn').addEventListener('click',()=>{
+  document.getElementById('menuScreen').style.display='none';
+  const gameScreen=document.getElementById('gameStartScreen');gameScreen.style.display='flex';
+  const opening=document.getElementById('openingText');
+  const continueBtn=document.getElementById('continueBtn');
+  const tileBox=document.getElementById('tileBox');
+  const layers=document.querySelectorAll('#tileBox .layer');
+  opening.textContent='';continueBtn.style.display='none';
+  layers.forEach(layer => {
+  if (layer.classList.contains('base')) {
+    layer.style.opacity = 1;
+    layer.style.transform = 'none';
+  } else {
+    layer.style.opacity = 0; // stay invisible initially
+    layer.style.transform = 'none';
+  }
+});
+  
+  // Eyes
+const eyes = document.querySelectorAll('.eye-dot');
+
+function moveEyes(){
+  eyes.forEach(eye=>{
+    const x = (Math.random() - 0.5) * 6; // subtle
+    const y = (Math.random() - 0.5) * 4;
+    eye.style.transform = `translate(${x}px, ${y}px)`;
+  });
+}
+
+setInterval(moveEyes, 1200);
+
+  // Typewriter
+  const text="You are DEUS. You are being sent to CONSTRUCT. Find the PEACE you are missing. But do not hurt the SPIRITS. Do not disturb the BEAST."; let index=0;
+  const typeInterval=setInterval(()=>{
+    opening.textContent+=text[index]; index++;
+    if(index>=text.length){clearInterval(typeInterval);
+      setTimeout(()=>{
+        let step=0;
+        let intensity=1;
+
+        function glitchFrame(){
+          step++;
+          intensity=Math.min(step/50,6); // progressive intensity increase
+
+          layers.forEach((layer,i)=>{
+            const x=(Math.random()-0.5)*10*intensity;
+            const y=(Math.random()-0.5)*5*intensity;
+            const r=(Math.random()-0.5)*5*intensity;
+            layer.style.transform=`translate(${x}px, ${y}px) rotate(${r}deg)`;
+            const baseIntensity = Math.min(step / 10, 1); // ramp speed
+const finalIntensity = baseIntensity * intensity;
+
+layer.style.opacity =
+  layer.classList.contains('base')
+    ? 1
+    : 0.15 + Math.random() * 0.35 * finalIntensity;
+          });
+
+          // horizontal slices
+          const sliceCount=Math.floor(Math.random()*5*intensity);
+          for(let i=0;i<sliceCount;i++){
+            const slice=document.createElement('div');
+            slice.className='layerSlice';
+            slice.style.top=Math.random()*100+'%';
+            slice.style.height=(Math.random()*4+1)+'px';
+            slice.style.backgroundImage=layers[0].style.backgroundImage;
+            slice.style.backgroundPosition=`${-Math.random()*50}px ${-Math.random()*50}px`;
+            document.getElementById('tileBox').appendChild(slice);
+            setTimeout(()=>slice.remove(),200);
+          }
+
+          requestAnimationFrame(glitchFrame);
+        }
+
+        glitchFrame();
+      },2000);
+      
+      layers.forEach(layer => {
+  if (!layer.classList.contains('base')) {
+    layer.style.opacity = 0.15; // start subtle
+  }
+});
+
+      continueBtn.style.display='block';
+    }
+  },50);
+});
+
+// Continue
+document.getElementById('continueBtn').addEventListener('click',()=>{window.location.href='construct.html';});
+</script>
+</body>
+</html>
