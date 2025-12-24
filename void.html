@@ -615,7 +615,7 @@ function playerTeleportTo(x, y){
   }, 100);
 }
 
-const car = { x:player.x+60, y:player.y+6, w:65, h:35, angle:0, speed:0, maxSpeed:3500, accel:1000, friction:200, turnSpeed:3.6, hp:300, exists:true, exploded: false, occupied:false };
+const car = { x:player.x+60, y:player.y+6, w:65, h:35, angle:0, speed:0, maxSpeed:350, accel:100, friction:200, turnSpeed:3.6, hp:300, exists:true, exploded: false, occupied:false };
 let bullets = [];
 
 // ---------- Peace Object ----------
@@ -660,7 +660,7 @@ laserTimer: 0,
 laserChargeTime: 2.5,
 laserFireTime: 2.0,
 laserWidth: 26,
-laserDamage: 40,
+laserDamage: 70,
 laserAngle: 0,
 // ── CORRUPTED GROUND (LASER COMBO) ──
 groundActive: false,
