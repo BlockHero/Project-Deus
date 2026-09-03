@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>Project Deus - Archives</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --hud-font: 'Courier Prime', monospace;
+            --ui-bg: rgba(0,0,0,0.4);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            background: #050404;
+            font-family: var(--hud-font);
+            -webkit-user-select: none;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        #gameWrap {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #050404;
+        }
+
+        canvas#game {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: default;
+        }
+
+        /* Overlay Styling - Colors mapped from menu.html dialogue box */
+        #interactionOverlay {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+            width: 320px;
+            background: rgba(10, 10, 10, 0.95);
+            color: #f0f0f0;
+            border: 1px solid #333;
+            border-top: 4px solid #fff;
+            border-radius: 4px;
+            padding: 24px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.9);
+            backdrop-filter: blur(4px);
+            text-align: center;
+            animation: slideUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+            pointer-events: auto;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translate(-50%, 20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+        }
+
+        #archiveTitle {
+            font-family: 'Playfair Display', serif;
+            font-size: 24px;
+            font-weight: 400;
+            margin: 0;
+            letter-spacing: 2px;
+            color: #fff;
+        }
+
+        .helper-text {
+            font-size: 13px;
+            color: #888;
+            margin: 0 0 8px 0;
+        }
+
+        .menu-btn {
+            width: 100%;
+            background: transparent;
+            color: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            padding: 12px 20px;
+            font-size: 15px;
+            font-family: var(--hud-font);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+            .menu-btn:hover {
+                background: rgba(255, 255, 255, 0.1);
+                color: #fff;
+                border-color: #fff;
+            }
+
+            .menu-btn:active {
+                transform: scale(0.97);
+            }
+
+        /* Joystick Controls */
+        #joystickArea {
+            position: absolute;
+            left: 24px;
+            bottom: 24px;
+            width: 150px;
+            height: 150px;
+            z-index: 110;
+            touch-action: none;
+        }
+
+        .joystick-bg {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: var(--ui-bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        #stick {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            left: 45px;
+            top: 45px;
+            border-radius: 50%;
+            background: rgba(200, 200, 200, 0.6);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            transition: transform 0.02s linear;
+            pointer-events: none;
+        }
+
+        @media(min-width:900px) {
+            #joystickArea {
+                width: 180px;
+                height: 180px;
+            }
+
+            #stick {
+                width: 70px;
+                height: 70px;
+                left: 55px;
+                top: 55px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="gameWrap">
+        <canvas id="game"></canvas>
+
+        <!-- Joystick -->
+        <div id="joystickArea" aria-hidden="true">
+            <div class="joystick-bg"></div>
+            <div id="stick"></div>
+        </div>
+
+        <!-- Interaction UI -->
+        <div id="interactionOverlay">
+            <h2 id="archiveTitle">Version 0.1</h2>
+            <p class="helper-text" id="archiveHelper">Experience past of the CONSTRUCT</p>
+            <button id="enterBtn" class="menu-btn">Enter</button>
+        </div>
+    </div>
+
+    <script>
+        // Setup Canvas
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const overlay = document.getElementById('interactionOverlay');
+        const titleEl = document.getElementById('archiveTitle');
+        const helperEl = document.getElementById('archiveHelper');
+        const enterBtn = document.getElementById('enterBtn');
+
+        let vw = window.innerWidth;
+        let vh = window.innerHeight;
+
+        // Auto-hide joystick on PC
+        const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        if (!isTouchDevice) document.getElementById('joystickArea').style.display = 'none';
+
+        window.addEventListener('resize', () => {
+            vw = canvas.width = window.innerWidth;
+            vh = canvas.height = window.innerHeight;
+        });
+        window.dispatchEvent(new Event('resize'));
+
+        // Input State
+        const inputKeys = {};
+        let input = { moveX: 0, moveY: 0 };
+        let joy = { active: false, startX: 0, startY: 0, x: 0, y: 0 };
+        let moveTouchId = null;
+
+        window.addEventListener('keydown', e => inputKeys[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', e => inputKeys[e.key.toLowerCase()] = false);
+
+        // Joystick Logic
+        const stick = document.getElementById('stick');
+        const joystickArea = document.getElementById('joystickArea');
+
+        function startStick(x, y) {
+            joy.active = true;
+            joy.startX = x;
+            joy.startY = y;
+            moveStick(x, y);
+        }
+        function moveStick(x, y) {
+            let dx = x - joy.startX, dy = y - joy.startY;
+            const max = 40;
+            const d = Math.hypot(dx, dy);
+            if (d > max) { dx = dx / d * max; dy = dy / d * max; }
+            joy.x = dx; joy.y = dy;
+            input.moveX = dx / max;
+            input.moveY = dy / max;
+            stick.style.transform = `translate(${dx}px, ${dy}px)`;
+        }
+        function endStick() {
+            joy.active = false;
+            joy.x = joy.y = 0;
+            input.moveX = input.moveY = 0;
+            stick.style.transform = `translate(0px, 0px)`;
+        }
+
+        joystickArea.addEventListener('touchstart', e => {
+            if (e.cancelable) e.preventDefault();
+            for (const t of e.changedTouches) {
+                if (moveTouchId === null) {
+                    moveTouchId = t.identifier;
+                    startStick(t.clientX, t.clientY);
+                    break;
+                }
+            }
+        }, { passive: false });
+        joystickArea.addEventListener('touchmove', e => {
+            if (e.cancelable) e.preventDefault();
+            for (const t of e.changedTouches) {
+                if (t.identifier === moveTouchId) {
+                    moveStick(t.clientX, t.clientY);
+                }
+            }
+        }, { passive: false });
+        joystickArea.addEventListener('touchend', e => {
+            if (e.cancelable) e.preventDefault();
+            for (const t of e.changedTouches) {
+                if (t.identifier === moveTouchId) {
+                    moveTouchId = null;
+                    endStick();
+                }
+            }
+        }, { passive: false });
+        joystickArea.addEventListener('touchcancel', e => {
+            if (e.cancelable) e.preventDefault();
+            for (const t of e.changedTouches) {
+                if (t.identifier === moveTouchId) {
+                    moveTouchId = null;
+                    endStick();
+                }
+            }
+        }, { passive: false });
+
+        // Room & Player Properties
+        const ROOM_W = 1000;
+        const ROOM_H = 1500;
+
+        const player = {
+            x: 500,
+            y: 1350, // Starts at the door
+            r: 14,
+            speed: 220,
+            lookX: 0,
+            lookY: -1,
+            spawning: true,
+            spawnTimer: 0,
+            spawnDuration: 0.8,
+            spawnShake: 6,
+            spawnFlickerRate: 40
+        };
+
+        let hasLeftSpawn = false;
+
+        // Museum Content
+        const exhibits = [
+            { id: "Version 0.1", link: "V0.1.html", x: 300, y: 1100 },
+            { id: "Version 0.2", link: "V0.2.html", x: 700, y: 1100 },
+            { id: "Version 1.0", link: "V1.0.html", x: 300, y: 800 },
+            { id: "Version 2.0", link: "V2.0.html", x: 700, y: 800 },
+            { id: "Version 2.2", link: "V2.2.html", x: 300, y: 500 },
+            { id: "Version 2.6", link: "V2.6.html", x: 700, y: 500 },
+            { id: "Version 3.1", link: "V3.1.html", x: 500, y: 200 } // Final piece
+        ];
+
+        // Return to Forest object
+        const exitDoor = { id: "Forest", link: "forest.html", isDoor: true };
+
+        let activeExhibit = null;
+
+        // Interaction Execution
+        function interact() {
+            if (activeExhibit) {
+                window.location.href = activeExhibit.link;
+            }
+        }
+
+        enterBtn.addEventListener('click', interact);
+        window.addEventListener('keydown', e => {
+            if (e.key.toLowerCase() === 'e' && activeExhibit) {
+                interact();
+            }
+        });
+
+        // Collision Check (Walls + Pedestals)
+        function checkCollision(nx, ny) {
+            // Walls
+            if (nx < 100 + player.r || nx > ROOM_W - 100 - player.r) return true;
+            if (ny < 100 + player.r || ny > ROOM_H - 100 - player.r) return true;
+
+            // Pedestals (40x40 stone pillars)
+            const pSize = 25;
+            for (let e of exhibits) {
+                if (nx + player.r > e.x - pSize && nx - player.r < e.x + pSize &&
+                    ny + player.r > e.y - pSize && ny - player.r < e.y + pSize) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        let lastTime = performance.now();
+
+        // Main Update Loop
+        function update(now) {
+            const dt = Math.min(0.05, (now - lastTime) / 1000);
+            lastTime = now;
+
+            if (player.spawning) {
+                player.spawnTimer += dt;
+                if (player.spawnTimer >= player.spawnDuration) {
+                    player.spawnTimer = player.spawnDuration;
+                    player.spawning = false;
+                }
+            }
+
+            if (!player.spawning) {
+                // Determine Movement Vector
+                let mvx = 0, mvy = 0;
+                if (inputKeys['w'] || inputKeys['arrowup']) mvy = -1;
+                if (inputKeys['s'] || inputKeys['arrowdown']) mvy = 1;
+                if (inputKeys['a'] || inputKeys['arrowleft']) mvx = -1;
+                if (inputKeys['d'] || inputKeys['arrowright']) mvx = 1;
+
+                if (joy.active) {
+                    mvx = input.moveX;
+                    mvy = input.moveY;
+                } else if (mvx !== 0 || mvy !== 0) {
+                    input.moveX = mvx;
+                    input.moveY = mvy;
+                } else {
+                    input.moveX = 0;
+                    input.moveY = 0;
+                }
+
+                const mag = Math.hypot(input.moveX, input.moveY);
+                if (mag > 0.1) {
+                    const moveX = (input.moveX / mag) * player.speed * dt;
+                    const moveY = (input.moveY / mag) * player.speed * dt;
+
+                    if (!checkCollision(player.x + moveX, player.y)) player.x += moveX;
+                    if (!checkCollision(player.x, player.y + moveY)) player.y += moveY;
+
+                    // Update facing direction via joystick/movement
+                    player.lookX = input.moveX / mag;
+                    player.lookY = input.moveY / mag;
+                }
+            }
+
+            // Track if player has left the initial spawn zone
+            if (!hasLeftSpawn && (player.y <= ROOM_H - 180 || player.x <= 380 || player.x >= 620)) {
+                hasLeftSpawn = true;
+            }
+
+            // Proximity Check
+            let closest = null;
+            let minDist = 75;
+
+            // Check Exhibits
+            for (let e of exhibits) {
+                const dist = Math.hypot(player.x - e.x, player.y - e.y);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closest = e;
+                }
+            }
+
+            // Check Door Exit (Only if player has left spawn area first)
+            if (!closest && hasLeftSpawn && player.y > ROOM_H - 180 && player.x > 380 && player.x < 620) {
+                closest = exitDoor;
+            }
+
+            if (closest) {
+                if (activeExhibit !== closest) {
+                    activeExhibit = closest;
+                    titleEl.innerText = closest.id;
+                    helperEl.innerText = closest.isDoor ? (isTouchDevice ? "Tap to leave" : "Return back to FOREST") : (isTouchDevice ? "Experience past of the CONSTRUCT" : "Experience past of the CONSTRUCT");
+                    enterBtn.innerText = closest.isDoor ? "Leave" : "Enter";
+                    overlay.style.display = "flex";
+                }
+            } else {
+                if (activeExhibit !== null) {
+                    activeExhibit = null;
+                    overlay.style.display = "none";
+                }
+            }
+
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        // Main Rendering Loop
+        function draw() {
+            ctx.clearRect(0, 0, vw, vh);
+
+            ctx.save();
+            // Camera tracking player
+            const camX = player.x;
+            const camY = player.y;
+            ctx.translate(vw / 2 - camX, vh / 2 - camY);
+
+            // 1. Draw Environment
+            // Floor Base
+            ctx.fillStyle = '#100e0c';
+            ctx.fillRect(100, 100, ROOM_W - 200, ROOM_H - 200);
+
+            // Floor Tiles
+            ctx.fillStyle = '#161311';
+            for (let y = 100; y < ROOM_H - 100; y += 80) {
+                for (let x = 100; x < ROOM_W - 100; x += 80) {
+                    if ((x / 80 + y / 80) % 2 === 0) {
+                        ctx.fillRect(x, y, 80, 80);
+                    }
+                }
+            }
+
+            // Walls
+            ctx.strokeStyle = '#26221d';
+            ctx.lineWidth = 12;
+            ctx.strokeRect(94, 94, ROOM_W - 188, ROOM_H - 188);
+            ctx.strokeStyle = '#050404';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(100, 100, ROOM_W - 200, ROOM_H - 200);
+
+            // Entrance Door Area
+            ctx.fillStyle = '#050404';
+            ctx.fillRect(400, ROOM_H - 106, 200, 20);
+
+            // Soft light entering from the door
+            const doorLight = ctx.createLinearGradient(0, ROOM_H - 100, 0, ROOM_H - 300);
+            doorLight.addColorStop(0, 'rgba(200, 220, 255, 0.15)');
+            doorLight.addColorStop(1, 'rgba(200, 220, 255, 0)');
+            ctx.fillStyle = doorLight;
+            ctx.fillRect(350, ROOM_H - 300, 300, 200);
+
+            // 2. Draw Exhibits
+            for (let e of exhibits) {
+                const isHovered = activeExhibit === e;
+
+                // Red Spotlight on pedestal
+                const spot = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, 100);
+                spot.addColorStop(0, 'rgba(255, 26, 26, 0.12)');
+                spot.addColorStop(1, 'rgba(255, 26, 26, 0)');
+                ctx.fillStyle = spot;
+                ctx.beginPath();
+                ctx.arc(e.x, e.y, 100, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Pedestal Base
+                ctx.fillStyle = '#22201d';
+                ctx.fillRect(e.x - 22, e.y - 22, 44, 44);
+
+                // Pedestal Top
+                ctx.fillStyle = '#2a2723';
+                ctx.fillRect(e.x - 20, e.y - 20, 40, 40);
+
+                // Document / Item on top
+                ctx.fillStyle = '#e8dec3';
+                ctx.fillRect(e.x - 8, e.y - 12, 16, 24);
+
+                // Red Selection indicator
+                if (isHovered) {
+                    ctx.strokeStyle = 'rgba(255, 50, 50, 0.6)';
+                    ctx.lineWidth = 1.5;
+                    ctx.strokeRect(e.x - 26, e.y - 26, 52, 52);
+                }
+
+                // Display Label Plaque
+                ctx.fillStyle = '#1c1916';
+                ctx.fillRect(e.x - 45, e.y + 35, 90, 20);
+                ctx.fillStyle = isHovered ? '#fff' : '#888';
+                ctx.font = "11px 'Courier Prime', monospace";
+                ctx.textAlign = "center";
+                ctx.fillText(e.id, e.x, e.y + 49);
+            }
+
+            // 3. Draw Player Character
+            let p = 1;
+            if (player.spawning) {
+                p = Math.min(player.spawnTimer / player.spawnDuration, 1);
+                // Flicker effect
+                if (Math.floor(performance.now() / player.spawnFlickerRate) % 2 === 0) {
+                    ctx.restore();
+                    return;
+                }
+            }
+
+            ctx.save();
+
+            if (player.spawning) {
+                const sk = (1 - p) * player.spawnShake;
+                ctx.translate(player.x + (Math.random() - 0.5) * sk, player.y + (Math.random() - 0.5) * sk);
+                ctx.scale(1, 1 + (1 - p) * 0.8);
+                ctx.globalAlpha = p;
+            } else {
+                ctx.translate(player.x, player.y);
+            }
+
+            // Body
+            ctx.fillStyle = '#E4D6F5';
+            ctx.beginPath();
+            ctx.arc(0, 0, player.r, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eyes aligning to look direction
+            const lookAng = Math.atan2(player.lookY, player.lookX);
+            ctx.rotate(lookAng);
+
+            ctx.fillStyle = '#000';
+            ctx.beginPath(); ctx.arc(6, -5, 2.5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(6, 5, 2.5, 0, Math.PI * 2); ctx.fill();
+
+            ctx.restore();
+
+            // Subtle global vignette
+            const vignette = ctx.createRadialGradient(camX, camY, vh * 0.3, camX, camY, vh * 0.8);
+            vignette.addColorStop(0, 'rgba(0,0,0,0)');
+            vignette.addColorStop(1, 'rgba(0,0,0,0.7)');
+            ctx.fillStyle = vignette;
+            ctx.fillRect(camX - vw / 2, camY - vh / 2, vw, vh);
+
+            ctx.restore();
+        }
+
+        // Initialize loop
+        requestAnimationFrame(update);
+    </script>
+</body>
+</html>
